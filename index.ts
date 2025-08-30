@@ -133,6 +133,39 @@ interface TextractResult {
   queries?: any[];
 }
 
+interface ValidatedBook {
+  original: BookCandidate;
+  validated?: {
+    title: string;
+    authors: string[];
+    isbn?: string;
+    publisher?: string;
+    publishYear?: number;
+    openLibraryUrl?: string;
+    coverUrl?: string;
+    workId?: string;
+  };
+  confidence: number;
+  validationSource: "open_library" | "none";
+  matchReason?: string;
+}
+
+interface OpenLibrarySearchResult {
+  key: string;
+  title: string;
+  author_name?: string[];
+  first_publish_year?: number;
+  isbn?: string[];
+  publisher?: string[];
+  cover_i?: number;
+  ebook_access?: string;
+}
+
+interface OpenLibraryResponse {
+  docs: OpenLibrarySearchResult[];
+  numFound: number;
+}
+
 interface TestResult {
   method: string;
   textractResult: TextractResult;
@@ -244,6 +277,201 @@ function calculateAccuracy(
   return matches / totalTruthBooks;
 }
 
+function calculateStringSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().trim();
+  const s2 = str2.toLowerCase().trim();
+
+  if (s1 === s2) return 1.0;
+  if (s1.includes(s2) || s2.includes(s1)) return 0.8;
+
+  // Simple word overlap scoring
+  const words1 = s1.split(/\s+/);
+  const words2 = s2.split(/\s+/);
+  const commonWords = words1.filter((word) => words2.includes(word)).length;
+  const totalWords = Math.max(words1.length, words2.length);
+
+  return commonWords / totalWords;
+}
+
+function matchAuthors(
+  candidateAuthors: string[],
+  libraryAuthors: string[]
+): number {
+  if (!candidateAuthors.length || !libraryAuthors.length) return 0;
+
+  let bestMatch = 0;
+  for (const candAuthor of candidateAuthors) {
+    for (const libAuthor of libraryAuthors) {
+      const similarity = calculateStringSimilarity(candAuthor, libAuthor);
+      bestMatch = Math.max(bestMatch, similarity);
+    }
+  }
+  return bestMatch;
+}
+
+async function searchOpenLibrary(
+  title: string,
+  authors: string[]
+): Promise<OpenLibraryResponse> {
+  const baseUrl = "https://openlibrary.org/search.json";
+  const fields =
+    "key,title,author_name,first_publish_year,isbn,publisher,cover_i,ebook_access";
+
+  // Try combined search first
+  let query = `title:"${title}"`;
+  if (authors.length > 0) {
+    query += ` author:"${authors[0]}"`;
+  }
+
+  const url = `${baseUrl}?q=${encodeURIComponent(
+    query
+  )}&fields=${fields}&limit=5`;
+
+  console.log(`🔍 Searching Open Library: ${query}`);
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data: OpenLibraryResponse = await response.json();
+    console.log(`📚 Found ${data.numFound} results`);
+    return data;
+  } catch (error) {
+    console.warn(`⚠️ Open Library search failed: ${error}`);
+    return { docs: [], numFound: 0 };
+  }
+}
+
+async function validateWithOpenLibrary(
+  candidate: BookCandidate
+): Promise<ValidatedBook> {
+  console.log(
+    `\n🔎 Validating: "${candidate.title}" by ${candidate.authors.join(", ")}`
+  );
+
+  const searchResults = await searchOpenLibrary(
+    candidate.title,
+    candidate.authors
+  );
+
+  if (searchResults.docs.length === 0) {
+    return {
+      original: candidate,
+      confidence: candidate.confidence * 0.5, // Reduce confidence for unvalidated
+      validationSource: "none",
+      matchReason: "No matches found in Open Library",
+    };
+  }
+
+  // Find best match
+  let bestMatch: OpenLibrarySearchResult | null = null;
+  let bestScore = 0;
+  let matchReason = "";
+
+  for (const result of searchResults.docs) {
+    const titleSimilarity = calculateStringSimilarity(
+      candidate.title,
+      result.title
+    );
+    const authorSimilarity = matchAuthors(
+      candidate.authors,
+      result.author_name || []
+    );
+
+    // Weighted scoring: title is more important
+    const score = titleSimilarity * 0.7 + authorSimilarity * 0.3;
+
+    console.log(
+      `  📖 "${result.title}" by ${(result.author_name || []).join(
+        ", "
+      )} - Score: ${score.toFixed(2)} (title: ${titleSimilarity.toFixed(
+        2
+      )}, author: ${authorSimilarity.toFixed(2)})`
+    );
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = result;
+      matchReason = `Title match: ${titleSimilarity.toFixed(
+        2
+      )}, Author match: ${authorSimilarity.toFixed(2)}`;
+    }
+  }
+
+  if (!bestMatch || bestScore < 0.5) {
+    return {
+      original: candidate,
+      confidence: candidate.confidence * 0.6,
+      validationSource: "none",
+      matchReason: `Best match score ${bestScore.toFixed(
+        2
+      )} below threshold 0.5`,
+    };
+  }
+
+  // Build validated book
+  const workId = bestMatch.key.replace("/works/", "");
+  const validated = {
+    title: bestMatch.title,
+    authors: bestMatch.author_name || [],
+    isbn: bestMatch.isbn?.[0],
+    publisher: bestMatch.publisher?.[0],
+    publishYear: bestMatch.first_publish_year,
+    openLibraryUrl: `https://openlibrary.org${bestMatch.key}`,
+    coverUrl: bestMatch.cover_i
+      ? `https://covers.openlibrary.org/b/id/${bestMatch.cover_i}-M.jpg`
+      : undefined,
+    workId,
+  };
+
+  // Boost confidence based on validation quality
+  const confidenceBoost = bestScore > 0.8 ? 1.2 : bestScore > 0.6 ? 1.1 : 1.0;
+  const finalConfidence = Math.min(candidate.confidence * confidenceBoost, 1.0);
+
+  console.log(
+    `✅ Validated: "${validated.title}" by ${validated.authors.join(
+      ", "
+    )} (confidence: ${finalConfidence.toFixed(2)})`
+  );
+
+  return {
+    original: candidate,
+    validated,
+    confidence: finalConfidence,
+    validationSource: "open_library",
+    matchReason,
+  };
+}
+
+async function validateAllCandidates(
+  candidates: BookCandidate[]
+): Promise<ValidatedBook[]> {
+  console.log(
+    `\n🔍 Validating ${candidates.length} book candidates with Open Library...`
+  );
+
+  const validatedBooks: ValidatedBook[] = [];
+
+  for (const candidate of candidates) {
+    const validated = await validateWithOpenLibrary(candidate);
+    validatedBooks.push(validated);
+
+    // Be respectful to Open Library API
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  const validatedCount = validatedBooks.filter(
+    (b) => b.validationSource === "open_library"
+  ).length;
+  console.log(
+    `📊 Validation complete: ${validatedCount}/${candidates.length} books validated`
+  );
+
+  return validatedBooks;
+}
+
 async function runTextractTests(
   s3Key: string,
   groundTruth?: GroundTruthBook[]
@@ -266,6 +494,7 @@ async function runTextractTests(
 
       // Process through Bedrock for comparison
       const candidates = await extractCandidates(textractResult.extractedText);
+      console.log("Candidates", JSON.stringify(candidates.candidates, null, 2));
 
       const accuracy = groundTruth
         ? calculateAccuracy(candidates.candidates, groundTruth)
@@ -482,6 +711,119 @@ async function saveTestResults(
   console.log(`💾 Test results saved to s3://${BUCKET_NAME}/${sessionDir}/`);
 }
 
+async function testValidation() {
+  console.log("🧪 Testing Open Library validation with sample books...\n");
+
+  const testCandidates: BookCandidate[] = [
+    {
+      title: "TRANSFORMER NICK LANE",
+      authors: ["Nick Lane"],
+      confidence: 0.9,
+    },
+    {
+      title: "THE POSSIBILITY OF LIFE",
+      authors: ["JAIME GREEN", "DUCKWORTH FALKOWSKI"],
+      confidence: 0.8,
+    },
+    {
+      title: "FOLLOW YOUR GUT",
+      authors: ["Barr", "Crocetti", "Wild", "Stinson", "Hutchings", "SCRIBE"],
+      confidence: 0.7,
+    },
+    {
+      title: "THE BITCOIN STANDARD",
+      authors: ["AMMOUS"],
+      confidence: 0.9,
+    },
+    {
+      title: "50 MATHEMATICAL IDEAS YOU REALLY NEED TO KNOW",
+      authors: ["Tony Crilly"],
+      confidence: 0.9,
+    },
+    {
+      title: "FROM BACTERIA TO BACH AND BACK",
+      authors: ["DANIEL C. DENNETT"],
+      confidence: 0.9,
+    },
+    {
+      title: "THE GENETIC LOTTERY",
+      authors: ["HARDEN"],
+      confidence: 0.9,
+    },
+    {
+      title: "WHY DNA MATTERS FOR SOCIAL EQUALITY",
+      authors: [],
+      confidence: 0.6,
+    },
+    {
+      title: "REBEL CELL",
+      authors: ["KAT ARNEY"],
+      confidence: 0.9,
+    },
+    {
+      title: "UNWELL",
+      authors: ["MIKE MCRAE"],
+      confidence: 0.9,
+    },
+    {
+      title: "HOW TO SPEND A TRILLION DOLLARS",
+      authors: ["ROWAN HOOPER"],
+      confidence: 0.9,
+    },
+  ];
+
+  const validatedBooks = await validateAllCandidates(testCandidates);
+
+  console.log("\n📋 VALIDATION RESULTS:");
+  console.log("=====================");
+
+  validatedBooks.forEach((book, i) => {
+    console.log(
+      `\n${i + 1}. Original: "${
+        book.original.title
+      }" by ${book.original.authors.join(", ")}`
+    );
+    console.log(
+      `   Status: ${
+        book.validationSource === "open_library"
+          ? "✅ VALIDATED"
+          : "❌ NOT FOUND"
+      }`
+    );
+    console.log(
+      `   Confidence: ${book.confidence.toFixed(
+        2
+      )} (was ${book.original.confidence.toFixed(2)})`
+    );
+
+    if (book.validated) {
+      console.log(
+        `   Validated: "${
+          book.validated.title
+        }" by ${book.validated.authors.join(", ")}`
+      );
+      if (book.validated.isbn) console.log(`   ISBN: ${book.validated.isbn}`);
+      if (book.validated.publisher)
+        console.log(`   Publisher: ${book.validated.publisher}`);
+      if (book.validated.publishYear)
+        console.log(`   Year: ${book.validated.publishYear}`);
+      if (book.validated.openLibraryUrl)
+        console.log(`   URL: ${book.validated.openLibraryUrl}`);
+    }
+
+    if (book.matchReason) {
+      console.log(`   Match: ${book.matchReason}`);
+    }
+  });
+
+  const validatedCount = validatedBooks.filter(
+    (b) => b.validationSource === "open_library"
+  ).length;
+  console.log(
+    `\n🎯 Summary: ${validatedCount}/${testCandidates.length} books successfully validated`
+  );
+}
+
 async function main() {
   const imagePath = process.argv[2];
   const groundTruthArg = process.argv[3];
@@ -497,7 +839,16 @@ async function main() {
     console.error(
       "  node index.ts bookshelf.jpg --test  # Run all Textract API tests"
     );
+    console.error(
+      "  node index.ts --validate-test      # Test Open Library validation only"
+    );
     process.exit(1);
+  }
+
+  // Special case: test validation only
+  if (imagePath === "--validate-test") {
+    await testValidation();
+    return;
   }
 
   try {
