@@ -1,0 +1,15 @@
+| Title | Subtitle | Author |
+|-------|----------|--------|
+| Transformer | The Deep Chemistry of Life and Death | Nick Lane |
+| Numbers Don’t Lie | 71 Things You Need to Know About the World (US title “71 Stories…”) | Vaclav Smil |
+| The Possibility of Life | Science, Imagination, and Our Quest for Kinship in the Cosmos | Jaime Green |
+| Life’s Engines | How Microbes Made Earth Habitable | Paul G. Falkowski |
+| Follow Your Gut | a story from the microbes that make you | Ailsa Wild; Lisa Stinson; Briony Barr; Gregory Crocetti; illus. Ben Hutchings |
+| Milk | The Truth, the Lies and the Unbelievable Story of the Original Superfood | Matthew Evans |
+| The Bitcoin Standard | The Decentralized Alternative to Central Banking | Saifedean Ammous |
+| 50 Mathematical Ideas You Really Need to Know | — | Tony Crilly |
+| From Bacteria to Bach and Back | The Evolution of Minds | Daniel C. Dennett |
+| The Genetic Lottery | Why DNA Matters for Social Equality | Kathryn Paige Harden |
+| Rebel Cell | Cancer, Evolution and the Science of Life (US subtitle “…the New Science of Life’s Oldest Betrayal”) | Kat Arney |
+| Unwell | What Makes a Disease a Disease? | Mike McRae |
+| How to Spend a Trillion Dollars | The 10 Global Problems We Can Actually Fix | Rowan Hooper |
