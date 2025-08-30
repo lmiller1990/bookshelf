@@ -15,7 +15,7 @@ variable "environment" {
 
 locals {
   resource_prefix = "bookimg-${lower(var.environment)}"
-  s3_bucket_name  = "${local.resource_prefix}-book-detect"
+  s3_bucket_name  = local.resource_prefix
 }
 
 provider "aws" {
@@ -76,6 +76,16 @@ resource "aws_iam_policy" "bookimg_textract_policy" {
 resource "aws_iam_user_policy_attachment" "bookimg_policy_attachment" {
   user       = aws_iam_user.bookimg_textract_user.name
   policy_arn = aws_iam_policy.bookimg_textract_policy.arn
+}
+
+# Create S3 bucket
+resource "aws_s3_bucket" "bookimg_bucket" {
+  bucket = local.s3_bucket_name
+
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+  }
 }
 
 # Create access key for the user
