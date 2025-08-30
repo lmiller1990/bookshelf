@@ -18,8 +18,9 @@ locals {
   s3_bucket_name  = local.resource_prefix
 }
 
+# Use deployer credentials (configured via aws configure --profile bookimg-deployer)
 provider "aws" {
-  profile = "bookimg-new-account"
+  profile = "bookimg-deployer"
   region  = "ap-southeast-2"
 }
 
@@ -56,12 +57,20 @@ resource "aws_iam_policy" "bookimg_textract_policy" {
           "s3:CreateBucket",
           "s3:GetObject",
           "s3:PutObject",
-          "s3:HeadBucket"
+          "s3:HeadBucket",
+          "s3:ListBucket"
         ]
         Resource = [
           "arn:aws:s3:::${local.s3_bucket_name}",
           "arn:aws:s3:::${local.s3_bucket_name}/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListAllMyBuckets"
+        ]
+        Resource = "*"
       }
     ]
   })
