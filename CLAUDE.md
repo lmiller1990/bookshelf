@@ -64,6 +64,8 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - Transform fragmented Textract output into clean book title/author pairs
 - Handle edge cases like multi-line titles and author name variations
 
+Some notes and planning in ![](./bookimg_bedrock_plan.md)
+
 ## How to Run
 
 ### Prerequisites
@@ -77,48 +79,7 @@ node index.js path/to/bookshelf-image.jpg
 
 ### AWS Setup Instructions
 
-**IMPORTANT**: Don't use root AWS credentials! Create a dedicated IAM user:
-
-1. **Create IAM User**:
-   - Name: `bookimg-textract-user`
-   - Access type: Programmatic access only
-
-2. **Attach Minimal Permissions**:
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Effect": "Allow",
-         "Action": [
-           "textract:DetectDocumentText"
-         ],
-         "Resource": "*"
-       },
-       {
-         "Effect": "Allow",
-         "Action": [
-           "s3:CreateBucket",
-           "s3:GetObject",
-           "s3:PutObject",
-           "s3:HeadBucket"
-         ],
-         "Resource": [
-           "arn:aws:s3:::book-detect",
-           "arn:aws:s3:::book-detect/*"
-         ]
-       }
-     ]
-   }
-   ```
-
-3. **Configure Credentials**:
-   ```bash
-   aws configure
-   # Enter Access Key ID and Secret Access Key from IAM user
-   # Region: us-east-1
-   # Output format: json
-   ```
+See [AWS_SEUTUP](./AWS_SETUP.md)
 
 ### What It Does
 1. Creates/verifies `book-detect` S3 bucket
