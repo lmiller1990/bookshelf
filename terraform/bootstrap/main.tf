@@ -75,33 +75,10 @@ resource "aws_iam_user" "terraform_deployer" {
   }
 }
 
-# Policy for the Terraform deployer (full IAM and service permissions)
-resource "aws_iam_policy" "terraform_deployer_policy" {
-  name        = "${local.resource_prefix}-terraform-deployer-policy"
-  path        = "/"
-  description = "Full permissions for BookImg Terraform deployment"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "iam:*",
-          "s3:*",
-          "textract:*",
-          "bedrock:*"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-# Attach policy to deployer user
-resource "aws_iam_user_policy_attachment" "terraform_deployer_attachment" {
+# Attach AWS managed AdministratorAccess policy to deployer user
+resource "aws_iam_user_policy_attachment" "terraform_deployer_admin_attachment" {
   user       = aws_iam_user.terraform_deployer.name
-  policy_arn = aws_iam_policy.terraform_deployer_policy.arn
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
 # Create access key for deployer user
