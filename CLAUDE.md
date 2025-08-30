@@ -57,14 +57,26 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - Tested permissions and S3 operations
 - Complete troubleshooting documentation
 
+✅ **Working LLM Processing Pipeline** 
+- AWS Bedrock integration with Claude 3 Haiku
+- Structured candidate extraction from Textract OCR output
+- JSON output with confidence scoring for book title/author pairs
+- End-to-end workflow: Image → Textract → Bedrock → Structured candidates
+- Results saved to S3 as both raw text and parsed JSON
+
 ## Next Steps
 
-🔄 **LLM Processing Pipeline** (Current Priority)
-- Integrate AWS Bedrock for text cleanup and candidate generation
-- Transform fragmented Textract output into clean book title/author pairs
-- Handle edge cases like multi-line titles and author name variations
+🔄 **OCR Optimization** (Current Priority)
+- Improve Textract accuracy for book spine text detection
+- Investigate different Textract options (AnalyzeDocument vs DetectDocumentText)
+- Consider image preprocessing techniques for better OCR results
+- Handle edge cases with vertical/angled text on book spines
 
-Some notes and planning in ![](./bookimg_bedrock_plan.md)
+🔄 **Validation & Enhancement**
+- Add web search validation (Google Books API, Open Library)
+- Implement confidence scoring refinement
+- Add purchase link discovery (Amazon, etc.)
+- Consider Step Functions orchestration for complex workflows
 
 ## How to Run
 
