@@ -44,7 +44,7 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - IAM user `bookimg-uat-textract-user` with minimal required permissions
 - Complete deployment documentation in `TERRAFORM.md`
 
-✅ **Working CLI Application** (`index.js`)
+✅ **Working CLI Application** (`index.ts`)
 - Fast AWS Textract integration (1-2 second extraction)
 - S3 bucket management with session-based organization (`{image-name}-{timestamp}/`)
 - Automatic bucket creation and file upload
@@ -64,19 +64,29 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - End-to-end workflow: Image → Textract → Bedrock → Structured candidates
 - Results saved to S3 as both raw text and parsed JSON
 
+✅ **OCR Working Well**
+- Comprehensive testing framework for different Textract APIs and parameters
+- DetectDocumentText performing reliably for book spine text extraction
+- Enhanced Bedrock prompt with support for subtitles and better extraction rules
+- Ground truth comparison system for accuracy measurement
+- Detailed testing output with confidence scores and accuracy rankings
+- Testing documentation in `TEXTRACT_TESTING.md`
+
 ## Next Steps
 
-🔄 **OCR Optimization** (Current Priority)
-- Improve Textract accuracy for book spine text detection
-- Investigate different Textract options (AnalyzeDocument vs DetectDocumentText)
-- Consider image preprocessing techniques for better OCR results
-- Handle edge cases with vertical/angled text on book spines
+🔄 **Book Validation & Enhancement** (Current Priority)
+- Add web search validation for each book candidate (Google Books API, Open Library API)
+- Implement exact title/author matching with fuzzy search capabilities
+- Discover and return book metadata: ISBN, publication year, publisher
+- Add purchase link discovery (Amazon, Bookshop.org, etc.)
+- Create book information enrichment agent/workflow
 
-🔄 **Validation & Enhancement**
-- Add web search validation (Google Books API, Open Library)
-- Implement confidence scoring refinement
-- Add purchase link discovery (Amazon, etc.)
-- Consider Step Functions orchestration for complex workflows
+🔄 **API Integration & Agents**
+- Integrate Google Books API for title/author validation
+- Add Open Library API as fallback source
+- Implement ISBN lookup and metadata enrichment
+- Create web scraping agent for purchase link discovery
+- Consider Step Functions orchestration for complex validation workflows
 
 ## How to Run
 
