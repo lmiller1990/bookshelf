@@ -15,9 +15,11 @@
     "@aws-sdk/client-s3": "^3.879.0",
     "@aws-sdk/client-sns": "^3.879.0",
     "@aws-sdk/client-textract": "^3.879.0",
+    "@fastify/aws-lambda": "^6.1.1",
     "@types/commander": "^2.12.5",
     "@types/node": "^24.3.0",
     "commander": "^14.0.0",
+    "fastify": "^5.5.0",
     "typescript": "^5.9.2"
   }
 }
