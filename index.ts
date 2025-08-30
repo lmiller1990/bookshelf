@@ -110,140 +110,6 @@ async function testDetectDocumentText(s3Key: string): Promise<TextractResult> {
   };
 }
 
-async function testDetectDocumentTextWords(
-  s3Key: string
-): Promise<TextractResult> {
-  const command = new DetectDocumentTextCommand({
-    Document: {
-      S3Object: {
-        Bucket: BUCKET_NAME,
-        Name: s3Key,
-      },
-    },
-  });
-
-  const response = await textractClient.send(command);
-  const blocks = response.Blocks || [];
-
-  const extractedText = blocks
-    .filter((block) => block.BlockType === "WORD")
-    .map((block) => block.Text)
-    .join(" ");
-
-  const avgConfidence =
-    blocks
-      .filter((block) => block.BlockType === "WORD")
-      .reduce((sum, block) => sum + (block.Confidence || 0), 0) /
-    blocks.filter((b) => b.BlockType === "WORD").length;
-
-  return {
-    method: "DetectDocumentText (WORD)",
-    extractedText,
-    confidence: avgConfidence,
-    blocks,
-  };
-}
-
-async function testAnalyzeDocumentQueries(
-  s3Key: string
-): Promise<TextractResult> {
-  const queries = [
-    { Text: "What is the book title?" },
-    { Text: "Who is the author?" },
-    { Text: "What books are shown?" },
-    { Text: "List all book titles and authors" },
-    { Text: "What text appears on the book spines?" },
-  ];
-
-  const command = new AnalyzeDocumentCommand({
-    Document: {
-      S3Object: {
-        Bucket: BUCKET_NAME,
-        Name: s3Key,
-      },
-    },
-    FeatureTypes: ["QUERIES"],
-    QueriesConfig: {
-      Queries: queries,
-    },
-  });
-
-  const response = await textractClient.send(command);
-  const blocks = response.Blocks || [];
-
-  const queryResults = blocks
-    .filter((block) => block.BlockType === "QUERY_RESULT")
-    .map((block) => ({
-      query: queries.find((q) => q.Text === block.Query?.Text)?.Text,
-      answer: block.Text,
-      confidence: block.Confidence,
-    }));
-
-  const extractedText = queryResults
-    .map((result) => `${result.query}: ${result.answer}`)
-    .join("\n");
-
-  const avgConfidence =
-    queryResults.reduce((sum, result) => sum + (result.confidence || 0), 0) /
-    queryResults.length;
-
-  return {
-    method: "AnalyzeDocument (QUERIES)",
-    extractedText,
-    confidence: avgConfidence,
-    blocks,
-    queries: queryResults,
-  };
-}
-
-async function testAnalyzeDocumentLayout(
-  s3Key: string
-): Promise<TextractResult> {
-  const command = new AnalyzeDocumentCommand({
-    Document: {
-      S3Object: {
-        Bucket: BUCKET_NAME,
-        Name: s3Key,
-      },
-    },
-    FeatureTypes: ["LAYOUT"],
-  });
-
-  const response = await textractClient.send(command);
-  const blocks = response.Blocks || [];
-
-  const layoutText = blocks
-    .filter((block) => block.BlockType === "LINE")
-    .sort((a, b) => {
-      // Sort by vertical position (top to bottom), then horizontal (left to right)
-      const aTop = a.Geometry?.BoundingBox?.Top || 0;
-      const bTop = b.Geometry?.BoundingBox?.Top || 0;
-      const aLeft = a.Geometry?.BoundingBox?.Left || 0;
-      const bLeft = b.Geometry?.BoundingBox?.Left || 0;
-
-      if (Math.abs(aTop - bTop) > 0.02) {
-        // Different lines
-        return aTop - bTop;
-      }
-      return aLeft - bLeft; // Same line, sort by position
-    })
-    .map((block) => block.Text)
-    .join("\n");
-
-  const avgConfidence =
-    blocks
-      .filter((block) => block.BlockType === "LINE")
-      .reduce((sum, block) => sum + (block.Confidence || 0), 0) /
-    blocks.filter((b) => b.BlockType === "LINE").length;
-
-  return {
-    method: "AnalyzeDocument (LAYOUT)",
-    extractedText: layoutText,
-    confidence: avgConfidence,
-    blocks,
-  };
-}
-
 interface BookCandidate {
   title: string;
   authors: string[];
@@ -271,7 +137,7 @@ interface TestResult {
   method: string;
   textractResult: TextractResult;
   candidates: CandidatesResponse;
-  accuracy?: number;
+  accuracy: number | undefined;
 }
 
 async function extractCandidates(
@@ -279,11 +145,27 @@ async function extractCandidates(
 ): Promise<CandidatesResponse> {
   const prompt = `You are a book metadata extractor. Given noisy OCR text from book spines, extract book title/author candidates.
 
-Rules:
-- Output valid JSON only: {"candidates": [{"title": "...", "subtitle:": "...", "authors": ["..."], "confidence": 0.0-1.0}]}
+CRITICAL: You MUST respond with valid JSON in this exact format:
+{
+  "candidates": [
+    {
+      "title": "Full Book Title",
+      "authors": ["Author Name", "Co-author Name"],
+      "confidence": 0.9
+    }
+  ]
+}
+
+REQUIRED FIELDS:
+- "title": string (never null or empty)
+- "authors": array of strings (never null, use empty array [] if no authors found)
+- "confidence": number between 0.0 and 1.0
+
+RULES:
+- Output ONLY the JSON object, no other text
 - Don't invent data - only extract what's clearly present
-- Author/title are usually close together. They can be on the same line, or separate lines.
-- Some books have subtitles, but not all.
+- Author/title are usually close together, can be same or separate lines
+- If uncertain about authors, use empty array [] not null
 - Confidence: 0.9+ = very clear, 0.7+ = likely, 0.5+ = possible
 
 OCR Text:
@@ -295,6 +177,11 @@ ${extractedText}`;
     body: JSON.stringify({
       anthropic_version: "bedrock-2023-05-31",
       max_tokens: 2000,
+      // temperature: 0.3, // Low temperature for consistent, deterministic responses
+      // top_p: 0.3, // Focus on most probable tokens for structured output
+      // top_k: 20, // Limit vocabulary to top 20 tokens for consistency
+      system:
+        "You are a precise book metadata extraction system. You MUST respond with valid JSON only. Never include explanatory text, markdown, or any content outside the JSON object.",
       messages: [
         {
           role: "user",
@@ -318,6 +205,7 @@ ${extractedText}`;
     return candidates;
   } catch (error) {
     console.warn("⚠️ Failed to parse JSON response, returning raw text");
+    console.warn("Raw response:", candidatesText);
     return { candidates: [] };
   }
 }
@@ -362,12 +250,7 @@ async function runTextractTests(
 ): Promise<TestResult[]> {
   console.log(`\n🧪 Running Textract tests on ${s3Key}...`);
 
-  const testMethods = [
-    () => testDetectDocumentText(s3Key),
-    // () => testDetectDocumentTextWords(s3Key),
-    // () => testAnalyzeDocumentQueries(s3Key),
-    // () => testAnalyzeDocumentLayout(s3Key),
-  ];
+  const testMethods = [() => testDetectDocumentText(s3Key)];
 
   const results: TestResult[] = [];
 
@@ -464,19 +347,19 @@ function printTestResults(
 
     console.log(`Candidates:`);
     result.candidates.candidates.forEach((candidate, j) => {
+      const authors =
+        candidate.authors && Array.isArray(candidate.authors)
+          ? candidate.authors.join(", ")
+          : "Unknown";
       console.log(
-        `  ${j + 1}. "${candidate.title}" by ${candidate.authors.join(", ")} (${
+        `  ${j + 1}. "${candidate.title || "Unknown Title"}" by ${authors} (${
           candidate.confidence
         })`
       );
     });
 
     console.log(`Raw Text Preview:`);
-    console.log(
-      `  ${result.textractResult.extractedText.substring(0, 200)}${
-        result.textractResult.extractedText.length > 200 ? "..." : ""
-      }`
-    );
+    console.log(result.textractResult.extractedText);
   });
 }
 
@@ -542,7 +425,7 @@ async function saveTestResults(
             .sort((a, b) => (b.accuracy || 0) - (a.accuracy || 0))
             .map((result, i) => {
               const accuracy =
-                result.accuracy !== undefined
+                result.accuracy !== undefineikd
                   ? `${(result.accuracy * 100).toFixed(1)}%`
                   : "N/A";
               return `${i + 1}. ${result.method}: ${accuracy}`;
@@ -561,12 +444,15 @@ async function saveTestResults(
         ? [`Accuracy: ${(result.accuracy * 100).toFixed(1)}%`]
         : []),
       `Candidates:`,
-      ...result.candidates.candidates.map(
-        (candidate, j) =>
-          `  ${j + 1}. "${candidate.title}" by ${candidate.authors.join(
-            ", "
-          )} (${candidate.confidence})`
-      ),
+      ...result.candidates.candidates.map((candidate, j) => {
+        const authors =
+          candidate.authors && Array.isArray(candidate.authors)
+            ? candidate.authors.join(", ")
+            : "Unknown";
+        return `  ${j + 1}. "${
+          candidate.title || "Unknown Title"
+        }" by ${authors} (${candidate.confidence})`;
+      }),
       `Raw Text Preview:`,
       `  ${result.textractResult.extractedText.substring(0, 200)}${
         result.textractResult.extractedText.length > 200 ? "..." : ""
@@ -665,10 +551,14 @@ async function main() {
       console.log("\nBook Candidates:");
       console.log("---");
       candidates.candidates.forEach((candidate, i) => {
+        const authors =
+          candidate.authors && Array.isArray(candidate.authors)
+            ? candidate.authors.join(", ")
+            : "Unknown";
         console.log(
-          `${i + 1}. "${candidate.title}" by ${candidate.authors.join(
-            ", "
-          )} (confidence: ${candidate.confidence})`
+          `${i + 1}. "${
+            candidate.title || "Unknown Title"
+          }" by ${authors} (confidence: ${candidate.confidence})`
         );
       });
       console.log("---");
