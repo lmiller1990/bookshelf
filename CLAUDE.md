@@ -35,17 +35,80 @@ The Genetic Lottery: Why DNA Matters for Social Equality — Kathryn Paige Harde
 Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link]
 ```
 
-## Implementation Details
+## Implementation Status
 
+✅ **Text Extraction Pipeline** (`index.js`)
+- AWS Textract integration complete
+- S3 bucket management (`book-detect`)
+- Session-based file organization
+- CLI interface ready
+
+🔄 **Next: LLM Processing**
 - **Step 1**: Text cleanup and candidate generation → `step1_text_cleanup.md`  
 - **Step 2**: Web search validation and scoring → `step2_web_validation.md`
 
-## Next Steps
+## How to Run
 
-1. **Implement AWS Textract API integration**
-   - Set up AWS credentials and SDK
-   - Create image upload and text extraction service
-   - Handle Textract response parsing
+### Prerequisites
+1. **AWS Setup** (see setup instructions below)
+2. **Dependencies**: `pnpm install` (already done)
+
+### Usage
+```bash
+node index.js path/to/bookshelf-image.jpg
+```
+
+### AWS Setup Instructions
+
+**IMPORTANT**: Don't use root AWS credentials! Create a dedicated IAM user:
+
+1. **Create IAM User**:
+   - Name: `bookimg-textract-user`
+   - Access type: Programmatic access only
+
+2. **Attach Minimal Permissions**:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "textract:DetectDocumentText"
+         ],
+         "Resource": "*"
+       },
+       {
+         "Effect": "Allow",
+         "Action": [
+           "s3:CreateBucket",
+           "s3:GetObject",
+           "s3:PutObject",
+           "s3:HeadBucket"
+         ],
+         "Resource": [
+           "arn:aws:s3:::book-detect",
+           "arn:aws:s3:::book-detect/*"
+         ]
+       }
+     ]
+   }
+   ```
+
+3. **Configure Credentials**:
+   ```bash
+   aws configure
+   # Enter Access Key ID and Secret Access Key from IAM user
+   # Region: us-east-1
+   # Output format: json
+   ```
+
+### What It Does
+1. Creates/verifies `book-detect` S3 bucket
+2. Uploads image to `{image-name}-{timestamp}/` directory
+3. Runs AWS Textract to extract text
+4. Saves results as `extracted-text.txt` in same directory
+5. Shows preview of extracted text
 
 ## Architecture Notes
 
