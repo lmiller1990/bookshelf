@@ -5,6 +5,14 @@ terraform {
       version = "~> 5.0"
     }
   }
+  
+  backend "s3" {
+    bucket         = "bookimg-uat-terraform-state"
+    key            = "main/terraform.tfstate"
+    region         = "ap-southeast-2"
+    profile        = "bookimg-deployer"
+    encrypt        = true
+  }
 }
 
 variable "environment" {

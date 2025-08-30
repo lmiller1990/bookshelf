@@ -3,3 +3,9 @@ node_modules
 .terraform
 *.jpg
 IMG_*
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform.lock.hcl
