@@ -10,12 +10,17 @@ import {
   TextractClient,
   DetectDocumentTextCommand,
 } from "@aws-sdk/client-textract";
+import {
+  BedrockRuntimeClient,
+  InvokeModelCommand,
+} from "@aws-sdk/client-bedrock-runtime";
 import { readFileSync } from "fs";
 import path from "path";
 
 const BUCKET_NAME = "bookimg-uat";
 const s3Client = new S3Client({ region: "ap-southeast-2" });
 const textractClient = new TextractClient({ region: "ap-southeast-2" });
+const bedrockClient = new BedrockRuntimeClient({ region: "ap-southeast-2" });
 
 async function ensureBucketExists() {
   try {
@@ -72,19 +77,92 @@ async function extractText(s3Key: string) {
   return extractedText;
 }
 
-async function saveResults(sessionDir: string, extractedText: string) {
-  const resultsKey = `${sessionDir}/extracted-text.txt`;
+interface BookCandidate {
+  title: string;
+  authors: string[];
+  confidence: number;
+}
 
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: resultsKey,
-      Body: extractedText,
-      ContentType: "text/plain",
-    })
-  );
+interface CandidatesResponse {
+  candidates: BookCandidate[];
+}
 
-  console.log(`💾 Saved results to s3://${BUCKET_NAME}/${resultsKey}`);
+async function extractCandidates(
+  extractedText: string
+): Promise<CandidatesResponse> {
+  const prompt = `You are a book metadata extractor. Given noisy OCR text from book spines, extract book title/author candidates.
+
+Rules:
+- Output valid JSON only: {"candidates": [{"title": "...", "authors": ["..."], "confidence": 0.0-1.0}]}
+- Extract 1-5 most confident candidates
+- Prefer complete titles (2+ words) and recognizable author names
+- Don't invent data - only extract what's clearly present
+- Confidence: 0.9+ = very clear, 0.7+ = likely, 0.5+ = possible
+
+OCR Text:
+${extractedText}`;
+
+  const command = new InvokeModelCommand({
+    // modelId: "anthropic.claude-3-5-sonnet-20240620-v1:0",
+    modelId: "anthropic.claude-3-haiku-20240307-v1:0",
+    body: JSON.stringify({
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 2000,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    }),
+    contentType: "application/json",
+    accept: "application/json",
+  });
+
+  console.log(`🤖 Processing with Bedrock Claude 3 Haiku...`);
+  const response = await bedrockClient.send(command);
+
+  const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+  const candidatesText = responseBody.content[0].text;
+
+  try {
+    const candidates: CandidatesResponse = JSON.parse(candidatesText);
+    console.log(`✅ Extracted ${candidates.candidates.length} book candidates`);
+    return candidates;
+  } catch (error) {
+    console.warn("⚠️ Failed to parse JSON response, returning raw text");
+    return { candidates: [] };
+  }
+}
+
+async function saveResults(
+  sessionDir: string,
+  extractedText: string,
+  candidates: CandidatesResponse
+) {
+  const textKey = `${sessionDir}/extracted-text.txt`;
+  const candidatesKey = `${sessionDir}/candidates.json`;
+
+  await Promise.all([
+    s3Client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: textKey,
+        Body: extractedText,
+        ContentType: "text/plain",
+      })
+    ),
+    s3Client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: candidatesKey,
+        Body: JSON.stringify(candidates, null, 2),
+        ContentType: "application/json",
+      })
+    ),
+  ]);
+
+  console.log(`💾 Saved results to s3://${BUCKET_NAME}/${sessionDir}/`);
 }
 
 async function main() {
@@ -108,14 +186,26 @@ async function main() {
     console.log("Uploading image...");
     const s3Key = await uploadImage(imagePath, sessionDir);
     const extractedText = await extractText(s3Key);
-    await saveResults(sessionDir, extractedText);
+    const candidates = await extractCandidates(extractedText);
+    await saveResults(sessionDir, extractedText, candidates);
 
     console.log("\nExtracted Text Preview:");
     console.log("---");
     console.log(
-      extractedText.substring(0, 500) +
-        (extractedText.length > 500 ? "..." : "")
+      extractedText.substring(0, 300) +
+        (extractedText.length > 300 ? "..." : "")
     );
+    console.log("---");
+
+    console.log("\nBook Candidates:");
+    console.log("---");
+    candidates.candidates.forEach((candidate, i) => {
+      console.log(
+        `${i + 1}. "${candidate.title}" by ${candidate.authors.join(
+          ", "
+        )} (confidence: ${candidate.confidence})`
+      );
+    });
     console.log("---");
     console.log(
       `Complete! Results saved in s3://${BUCKET_NAME}/${sessionDir}/`

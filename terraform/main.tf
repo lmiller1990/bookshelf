@@ -47,7 +47,8 @@ resource "aws_iam_policy" "bookimg_textract_policy" {
       {
         Effect = "Allow"
         Action = [
-          "textract:DetectDocumentText"
+          "textract:DetectDocumentText",
+          "bedrock:InvokeModel"
         ]
         Resource = "*"
       },
