@@ -63,6 +63,12 @@ node index.ts validate --provider openlibrary
 node --env-file=.env index.ts validate --provider googlebooks
 ```
 
+### Quick test
+
+```bash
+AWS_PROFILE=bookimg-app aws s3 cp IMG_9797.jpg s3://bookimg-uat/
+```
+
 ### Run Comprehensive Tests
 
 ```bash

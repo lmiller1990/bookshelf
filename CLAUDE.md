@@ -82,14 +82,17 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - Environment configuration system with `.env` file support
 - Complete validation testing framework with sample book datasets
 
+✅ **Lambdas**
+
+🔄 **AWS Lambda API Productionization**
+- Create Lambda functions for each pipeline stage:
+- Image upload & processing Lambda
+- Textract extraction Lambda  
+- Bedrock candidate generation Lambda
+- Book validation Lambda (with provider selection)
+
 ## Next Steps
 
-🔄 **AWS Lambda API Productionization** (Current Priority)
-- Create Lambda functions for each pipeline stage:
-  - Image upload & processing Lambda
-  - Textract extraction Lambda  
-  - Bedrock candidate generation Lambda
-  - Book validation Lambda (with provider selection)
 - Design REST API with API Gateway for web/mobile access
 - Implement async processing with SQS/SNS for long-running tasks
 - Add proper error handling, retries, and monitoring with CloudWatch
