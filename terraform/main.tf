@@ -246,9 +246,15 @@ resource "aws_iam_role" "lambda_execution_role" {
   }
 }
 
-# Lambda basic execution policy attachment
+# Lambda basic execution policy attachment (includes CloudWatch Logs)
 resource "aws_iam_role_policy_attachment" "lambda_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+  role       = aws_iam_role.lambda_execution_role.name
+}
+
+# Additional CloudWatch Logs permissions
+resource "aws_iam_role_policy_attachment" "lambda_logs" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
   role       = aws_iam_role.lambda_execution_role.name
 }
 
@@ -322,14 +328,46 @@ resource "aws_iam_role_policy_attachment" "lambda_service_policy_attachment" {
   role       = aws_iam_role.lambda_execution_role.name
 }
 
-# Lambda Functions (placeholder zip files will be created)
+# Archive Lambda function source code
+data "archive_file" "upload_handler" {
+  type        = "zip"
+  source_file = "lambdas/upload-handler.js"
+  output_path = "upload_handler.zip"
+}
+
+data "archive_file" "textract_processor" {
+  type        = "zip"
+  source_file = "lambdas/textract-processor.js"
+  output_path = "textract_processor.zip"
+}
+
+data "archive_file" "bedrock_processor" {
+  type        = "zip"
+  source_file = "lambdas/bedrock-processor.js"
+  output_path = "bedrock_processor.zip"
+}
+
+data "archive_file" "book_validator" {
+  type        = "zip"
+  source_file = "lambdas/book-validator.js"
+  output_path = "book_validator.zip"
+}
+
+# Lambda Functions
 resource "aws_lambda_function" "upload_handler" {
-  filename         = "upload_handler.zip"
+  filename         = data.archive_file.upload_handler.output_path
+  source_code_hash = data.archive_file.upload_handler.output_base64sha256
   function_name    = "${local.resource_prefix}-upload-handler"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
+  handler         = "upload-handler.handler"
   runtime         = "nodejs20.x"
   timeout         = 30
+
+  environment {
+    variables = {
+      TEXTRACT_QUEUE_URL = aws_sqs_queue.textract_queue.url
+    }
+  }
 
   tags = {
     Environment = var.environment
@@ -339,12 +377,20 @@ resource "aws_lambda_function" "upload_handler" {
 }
 
 resource "aws_lambda_function" "textract_processor" {
-  filename         = "textract_processor.zip"
+  filename         = data.archive_file.textract_processor.output_path
+  source_code_hash = data.archive_file.textract_processor.output_base64sha256
   function_name    = "${local.resource_prefix}-textract-processor"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
+  handler         = "textract-processor.handler"
   runtime         = "nodejs20.x"
   timeout         = 300  # 5 minutes for Textract
+
+  environment {
+    variables = {
+      RESULTS_BUCKET_NAME = aws_s3_bucket.bookimg_results.bucket
+      BEDROCK_QUEUE_URL   = aws_sqs_queue.bedrock_queue.url
+    }
+  }
 
   tags = {
     Environment = var.environment
@@ -354,12 +400,20 @@ resource "aws_lambda_function" "textract_processor" {
 }
 
 resource "aws_lambda_function" "bedrock_processor" {
-  filename         = "bedrock_processor.zip"
+  filename         = data.archive_file.bedrock_processor.output_path
+  source_code_hash = data.archive_file.bedrock_processor.output_base64sha256
   function_name    = "${local.resource_prefix}-bedrock-processor"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
+  handler         = "bedrock-processor.handler"
   runtime         = "nodejs20.x"
   timeout         = 180  # 3 minutes for LLM
+
+  environment {
+    variables = {
+      RESULTS_BUCKET_NAME  = aws_s3_bucket.bookimg_results.bucket
+      VALIDATION_QUEUE_URL = aws_sqs_queue.validation_queue.url
+    }
+  }
 
   tags = {
     Environment = var.environment
@@ -369,12 +423,20 @@ resource "aws_lambda_function" "bedrock_processor" {
 }
 
 resource "aws_lambda_function" "book_validator" {
-  filename         = "book_validator.zip"
+  filename         = data.archive_file.book_validator.output_path
+  source_code_hash = data.archive_file.book_validator.output_base64sha256
   function_name    = "${local.resource_prefix}-book-validator"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
+  handler         = "book-validator.handler"
   runtime         = "nodejs20.x"
   timeout         = 120  # 2 minutes for API calls
+
+  environment {
+    variables = {
+      RESULTS_BUCKET_NAME = aws_s3_bucket.bookimg_results.bucket
+      SNS_TOPIC_ARN       = aws_sns_topic.results_notifications.arn
+    }
+  }
 
   tags = {
     Environment = var.environment
