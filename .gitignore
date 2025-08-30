@@ -1,4 +1,5 @@
 node_modules
 *.HEIC
+.terraform
 *.jpg
 IMG_*
