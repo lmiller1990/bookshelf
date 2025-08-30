@@ -103,8 +103,17 @@ AWS_PROFILE=bookimg-deployer terraform output s3_bucket_name
 
 ### Step 8: Configure Application Profile
 ```bash
-# Configure profile for the application user
-aws configure --profile bookimg-app
+# Get the credentials from Terraform outputs
+ACCESS_KEY_ID=$(AWS_PROFILE=bookimg-deployer terraform output -raw access_key_id)
+SECRET_ACCESS_KEY=$(AWS_PROFILE=bookimg-deployer terraform output -raw secret_access_key)
+
+# Configure the application profile with these credentials
+aws configure set aws_access_key_id $ACCESS_KEY_ID --profile bookimg-app
+aws configure set aws_secret_access_key $SECRET_ACCESS_KEY --profile bookimg-app  
+aws configure set region ap-southeast-2 --profile bookimg-app
+
+# Alternative: Manual configuration
+# aws configure --profile bookimg-app
 # Enter the application user Access Key ID and Secret Access Key from step 7
 # Region: ap-southeast-2
 # Output format: json
