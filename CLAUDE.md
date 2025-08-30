@@ -35,15 +35,27 @@ The Genetic Lottery: Why DNA Matters for Social Equality — Kathryn Paige Harde
 Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link]
 ```
 
-## Implementation Status
+## Progress So Far
 
-✅ **Text Extraction Pipeline** (`index.js`)
-- AWS Textract integration complete
-- S3 bucket management (`book-detect`)
-- Session-based file organization
-- CLI interface ready
+✅ **AWS Infrastructure Setup**
+- Terraform-managed infrastructure with environment namespacing
+- IAM user with least-privilege permissions (`bookimg-uat-textract-user`)
+- Secure credential management with dedicated application profile
+- Complete documentation in `AWS_SETUP.md`
 
-🔄 **Next: LLM Processing**
+✅ **Basic CLI Application** (`index.js`)
+- AWS Textract integration
+- S3 bucket management 
+- Session-based file organization (`{image-name}-{timestamp}/`)
+- CLI interface for image processing
+
+## Next Steps
+
+🔄 **Infrastructure Improvements**
+1. **Update Terraform**: Create top-level S3 bucket `bookimg-{env}` instead of hardcoded bucket name
+2. **Dynamic Directory Management**: Each image run creates its own directory in the main bucket
+
+🔄 **Future: LLM Processing Pipeline**
 - **Step 1**: Text cleanup and candidate generation → `step1_text_cleanup.md`  
 - **Step 2**: Web search validation and scoring → `step2_web_validation.md`
 

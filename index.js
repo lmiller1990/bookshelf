@@ -5,9 +5,9 @@ import { TextractClient, DetectDocumentTextCommand } from '@aws-sdk/client-textr
 import { readFileSync } from 'fs';
 import path from 'path';
 
-const BUCKET_NAME = 'book-detect';
-const s3Client = new S3Client({ region: 'us-east-1' });
-const textractClient = new TextractClient({ region: 'us-east-1' });
+const BUCKET_NAME = 'bookimg-uat-book-detect';
+const s3Client = new S3Client({ region: 'ap-southeast-2' });
+const textractClient = new TextractClient({ region: 'ap-southeast-2' });
 
 async function ensureBucketExists() {
   try {
