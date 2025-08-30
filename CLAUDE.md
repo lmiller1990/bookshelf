@@ -72,21 +72,43 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - Detailed testing output with confidence scores and accuracy rankings
 - Testing documentation in `TEXTRACT_TESTING.md`
 
+✅ **Multiple Book Validation Providers**
+- Integrated Google Books API for comprehensive book validation (9/11 books validated)
+- Maintained Open Library API as free alternative (7/11 books validated) 
+- Implemented smart matching algorithms with title/author similarity scoring
+- Rich metadata enrichment: ISBNs, publishers, publication years, cover images
+- Provider comparison and recommendation system
+- Full CLI support with `--validate openlibrary` and `--validate googlebooks`
+- Environment configuration system with `.env` file support
+- Complete validation testing framework with sample book datasets
+
 ## Next Steps
 
-🔄 **Book Validation & Enhancement** (Current Priority)
-- Add web search validation for each book candidate (Google Books API, Open Library API)
-- Implement exact title/author matching with fuzzy search capabilities
-- Discover and return book metadata: ISBN, publication year, publisher
-- Add purchase link discovery (Amazon, Bookshop.org, etc.)
-- Create book information enrichment agent/workflow
+🔄 **AWS Lambda API Productionization** (Current Priority)
+- Create Lambda functions for each pipeline stage:
+  - Image upload & processing Lambda
+  - Textract extraction Lambda  
+  - Bedrock candidate generation Lambda
+  - Book validation Lambda (with provider selection)
+- Design REST API with API Gateway for web/mobile access
+- Implement async processing with SQS/SNS for long-running tasks
+- Add proper error handling, retries, and monitoring with CloudWatch
+- Configure environment-based deployments (dev/staging/prod)
 
-🔄 **API Integration & Agents**
-- Integrate Google Books API for title/author validation
-- Add Open Library API as fallback source
-- Implement ISBN lookup and metadata enrichment
-- Create web scraping agent for purchase link discovery
-- Consider Step Functions orchestration for complex validation workflows
+🔄 **Web Frontend Development**
+- Build responsive web interface for bookshelf photo uploads
+- Real-time processing status updates and progress indicators
+- Interactive results display with book covers, metadata, and links
+- Provider selection (Open Library vs Google Books) in UI
+- Book collection management and export features
+- Mobile-responsive design for smartphone camera integration
+
+🔄 **Purchase Link Discovery & Enhancement**
+- Add Amazon affiliate link generation from ISBNs
+- Integrate Bookshop.org API for independent bookstore support
+- Price comparison across multiple retailers
+- Availability checking and stock status
+- Create book information enrichment workflows
 
 ## How to Run
 

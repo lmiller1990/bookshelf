@@ -17,6 +17,7 @@ import {
 } from "@aws-sdk/client-bedrock-runtime";
 import { readFileSync } from "fs";
 import path from "path";
+import { Command } from "commander";
 
 const BUCKET_NAME = "bookimg-uat";
 const s3Client = new S3Client({ region: "ap-southeast-2" });
@@ -142,11 +143,13 @@ interface ValidatedBook {
     publisher?: string;
     publishYear?: number;
     openLibraryUrl?: string;
+    googleBooksUrl?: string;
     coverUrl?: string;
     workId?: string;
+    googleBooksId?: string;
   };
   confidence: number;
-  validationSource: "open_library" | "none";
+  validationSource: "open_library" | "google_books" | "none";
   matchReason?: string;
 }
 
@@ -164,6 +167,35 @@ interface OpenLibrarySearchResult {
 interface OpenLibraryResponse {
   docs: OpenLibrarySearchResult[];
   numFound: number;
+}
+
+interface GoogleBooksVolumeInfo {
+  title: string;
+  authors?: string[];
+  publisher?: string;
+  publishedDate?: string;
+  industryIdentifiers?: {
+    type: string;
+    identifier: string;
+  }[];
+  imageLinks?: {
+    thumbnail?: string;
+    smallThumbnail?: string;
+  };
+}
+
+interface GoogleBooksItem {
+  kind: string;
+  id: string;
+  etag: string;
+  selfLink: string;
+  volumeInfo: GoogleBooksVolumeInfo;
+}
+
+interface GoogleBooksResponse {
+  kind: string;
+  totalItems: number;
+  items?: GoogleBooksItem[];
 }
 
 interface TestResult {
@@ -344,6 +376,43 @@ async function searchOpenLibrary(
   }
 }
 
+async function searchGoogleBooks(
+  title: string,
+  authors: string[]
+): Promise<GoogleBooksResponse> {
+  const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
+  if (!apiKey) {
+    console.warn("⚠️ GOOGLE_BOOKS_API_KEY not found in environment");
+    return { kind: "books#volumes", totalItems: 0, items: [] };
+  }
+
+  const baseUrl = "https://www.googleapis.com/books/v1/volumes";
+  
+  // Build search query with special keywords
+  let query = `intitle:"${title}"`;
+  if (authors.length > 0) {
+    query += ` inauthor:"${authors[0]}"`;
+  }
+
+  const url = `${baseUrl}?q=${encodeURIComponent(query)}&key=${apiKey}&maxResults=5`;
+
+  console.log(`🔍 Searching Google Books: ${query}`);
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data: GoogleBooksResponse = await response.json();
+    console.log(`📚 Found ${data.totalItems} results`);
+    return data;
+  } catch (error) {
+    console.warn(`⚠️ Google Books search failed: ${error}`);
+    return { kind: "books#volumes", totalItems: 0, items: [] };
+  }
+}
+
 async function validateWithOpenLibrary(
   candidate: BookCandidate
 ): Promise<ValidatedBook> {
@@ -445,25 +514,137 @@ async function validateWithOpenLibrary(
   };
 }
 
-async function validateAllCandidates(
-  candidates: BookCandidate[]
-): Promise<ValidatedBook[]> {
+async function validateWithGoogleBooks(
+  candidate: BookCandidate
+): Promise<ValidatedBook> {
   console.log(
-    `\n🔍 Validating ${candidates.length} book candidates with Open Library...`
+    `\n🔎 Validating with Google Books: "${candidate.title}" by ${candidate.authors.join(", ")}`
+  );
+
+  const searchResults = await searchGoogleBooks(
+    candidate.title,
+    candidate.authors
+  );
+
+  if (!searchResults.items || searchResults.items.length === 0) {
+    return {
+      original: candidate,
+      confidence: candidate.confidence * 0.5,
+      validationSource: "none",
+      matchReason: "No matches found in Google Books",
+    };
+  }
+
+  // Find best match
+  let bestMatch: GoogleBooksItem | null = null;
+  let bestScore = 0;
+  let matchReason = "";
+
+  for (const item of searchResults.items) {
+    const titleSimilarity = calculateStringSimilarity(
+      candidate.title,
+      item.volumeInfo.title
+    );
+    const authorSimilarity = matchAuthors(
+      candidate.authors,
+      item.volumeInfo.authors || []
+    );
+
+    // Weighted scoring: title is more important
+    const score = titleSimilarity * 0.7 + authorSimilarity * 0.3;
+
+    console.log(
+      `  📖 "${item.volumeInfo.title}" by ${(item.volumeInfo.authors || []).join(
+        ", "
+      )} - Score: ${score.toFixed(2)} (title: ${titleSimilarity.toFixed(
+        2
+      )}, author: ${authorSimilarity.toFixed(2)})`
+    );
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = item;
+      matchReason = `Title match: ${titleSimilarity.toFixed(
+        2
+      )}, Author match: ${authorSimilarity.toFixed(2)}`;
+    }
+  }
+
+  if (!bestMatch || bestScore < 0.5) {
+    return {
+      original: candidate,
+      confidence: candidate.confidence * 0.6,
+      validationSource: "none",
+      matchReason: `Best match score ${bestScore.toFixed(
+        2
+      )} below threshold 0.5`,
+    };
+  }
+
+  // Extract ISBN if available
+  const isbn = bestMatch.volumeInfo.industryIdentifiers?.find(
+    (id) => id.type === "ISBN_13" || id.type === "ISBN_10"
+  )?.identifier;
+
+  // Extract publication year from date string
+  const publishYear = bestMatch.volumeInfo.publishedDate
+    ? parseInt(bestMatch.volumeInfo.publishedDate.split("-")[0])
+    : undefined;
+
+  // Build validated book
+  const validated = {
+    title: bestMatch.volumeInfo.title,
+    authors: bestMatch.volumeInfo.authors || [],
+    isbn,
+    publisher: bestMatch.volumeInfo.publisher,
+    publishYear,
+    googleBooksUrl: `https://books.google.com/books?id=${bestMatch.id}`,
+    coverUrl: bestMatch.volumeInfo.imageLinks?.thumbnail,
+    googleBooksId: bestMatch.id,
+  };
+
+  // Boost confidence based on validation quality
+  const confidenceBoost = bestScore > 0.8 ? 1.2 : bestScore > 0.6 ? 1.1 : 1.0;
+  const finalConfidence = Math.min(candidate.confidence * confidenceBoost, 1.0);
+
+  console.log(
+    `✅ Validated with Google Books: "${validated.title}" by ${validated.authors.join(
+      ", "
+    )} (confidence: ${finalConfidence.toFixed(2)})`
+  );
+
+  return {
+    original: candidate,
+    validated,
+    confidence: finalConfidence,
+    validationSource: "google_books",
+    matchReason,
+  };
+}
+
+async function validateAllCandidates(
+  candidates: BookCandidate[],
+  provider: "open_library" | "google_books" = "open_library"
+): Promise<ValidatedBook[]> {
+  const providerName = provider === "open_library" ? "Open Library" : "Google Books";
+  console.log(
+    `\n🔍 Validating ${candidates.length} book candidates with ${providerName}...`
   );
 
   const validatedBooks: ValidatedBook[] = [];
 
   for (const candidate of candidates) {
-    const validated = await validateWithOpenLibrary(candidate);
+    const validated = provider === "open_library" 
+      ? await validateWithOpenLibrary(candidate)
+      : await validateWithGoogleBooks(candidate);
     validatedBooks.push(validated);
 
-    // Be respectful to Open Library API
+    // Be respectful to APIs
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
   const validatedCount = validatedBooks.filter(
-    (b) => b.validationSource === "open_library"
+    (b) => b.validationSource === provider
   ).length;
   console.log(
     `📊 Validation complete: ${validatedCount}/${candidates.length} books validated`
@@ -711,8 +892,9 @@ async function saveTestResults(
   console.log(`💾 Test results saved to s3://${BUCKET_NAME}/${sessionDir}/`);
 }
 
-async function testValidation() {
-  console.log("🧪 Testing Open Library validation with sample books...\n");
+async function testValidation(provider: "open_library" | "google_books" = "open_library") {
+  const providerName = provider === "open_library" ? "Open Library" : "Google Books";
+  console.log(`🧪 Testing ${providerName} validation with sample books...\n`);
 
   const testCandidates: BookCandidate[] = [
     {
@@ -772,7 +954,7 @@ async function testValidation() {
     },
   ];
 
-  const validatedBooks = await validateAllCandidates(testCandidates);
+  const validatedBooks = await validateAllCandidates(testCandidates, provider);
 
   console.log("\n📋 VALIDATION RESULTS:");
   console.log("=====================");
@@ -785,7 +967,7 @@ async function testValidation() {
     );
     console.log(
       `   Status: ${
-        book.validationSource === "open_library"
+        book.validationSource === provider
           ? "✅ VALIDATED"
           : "❌ NOT FOUND"
       }`
@@ -808,7 +990,9 @@ async function testValidation() {
       if (book.validated.publishYear)
         console.log(`   Year: ${book.validated.publishYear}`);
       if (book.validated.openLibraryUrl)
-        console.log(`   URL: ${book.validated.openLibraryUrl}`);
+        console.log(`   Open Library URL: ${book.validated.openLibraryUrl}`);
+      if (book.validated.googleBooksUrl)
+        console.log(`   Google Books URL: ${book.validated.googleBooksUrl}`);
     }
 
     if (book.matchReason) {
@@ -817,110 +1001,208 @@ async function testValidation() {
   });
 
   const validatedCount = validatedBooks.filter(
-    (b) => b.validationSource === "open_library"
+    (b) => b.validationSource === provider
   ).length;
   console.log(
     `\n🎯 Summary: ${validatedCount}/${testCandidates.length} books successfully validated`
   );
 }
 
-async function main() {
-  const imagePath = process.argv[2];
-  const groundTruthArg = process.argv[3];
+async function saveValidatedResults(
+  sessionDir: string,
+  extractedText: string,
+  candidates: CandidatesResponse,
+  validatedBooks: ValidatedBook[]
+) {
+  const textKey = `${sessionDir}/extracted-text.txt`;
+  const candidatesKey = `${sessionDir}/candidates.json`;
+  const validatedKey = `${sessionDir}/validated-books.json`;
 
-  if (!imagePath) {
-    console.error("Usage: node index.ts <image-path> [ground-truth-json]");
-    console.error("");
-    console.error("Examples:");
-    console.error("  node index.ts bookshelf.jpg");
-    console.error(
-      '  node index.ts bookshelf.jpg \'[{"title":"Book Title","authors":["Author Name"]}]\''
-    );
-    console.error(
-      "  node index.ts bookshelf.jpg --test  # Run all Textract API tests"
-    );
-    console.error(
-      "  node index.ts --validate-test      # Test Open Library validation only"
-    );
-    process.exit(1);
-  }
+  await Promise.all([
+    s3Client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: textKey,
+        Body: extractedText,
+        ContentType: "text/plain",
+      })
+    ),
+    s3Client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: candidatesKey,
+        Body: JSON.stringify(candidates, null, 2),
+        ContentType: "application/json",
+      })
+    ),
+    s3Client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: validatedKey,
+        Body: JSON.stringify(validatedBooks, null, 2),
+        ContentType: "application/json",
+      })
+    ),
+  ]);
 
-  // Special case: test validation only
-  if (imagePath === "--validate-test") {
-    await testValidation();
-    return;
-  }
+  console.log(`💾 Results saved to s3://${BUCKET_NAME}/${sessionDir}/`);
+}
+
+async function extractCommand(imagePath: string, options: any) {
+  console.log(`🚀 Starting book extraction from: ${imagePath}`);
+  
+  const imageName = path.basename(imagePath, path.extname(imagePath));
+  const timestamp = Date.now();
+  const sessionDir = `${imageName}-${timestamp}`;
 
   try {
-    const imageName = path.basename(imagePath, path.extname(imagePath));
-    const timestamp = Date.now();
-    const sessionDir = `${imageName}-${timestamp}`;
-
-    console.log(`Starting extraction for ${imagePath}`);
-    console.log(`Session: ${sessionDir}`);
-
-    console.log("Ensuring bucket exists...");
+    console.log("📦 Ensuring S3 bucket exists...");
     await ensureBucketExists();
-    console.log("Uploading image...");
+    
+    console.log("📤 Uploading image...");
     const s3Key = await uploadImage(imagePath, sessionDir);
+    
+    console.log("🔍 Extracting text with AWS Textract...");
+    const extractedText = await extractText(s3Key);
+    
+    console.log("🤖 Processing candidates with AWS Bedrock...");
+    const candidates = await extractCandidates(extractedText);
+    
+    let validatedBooks: ValidatedBook[] = [];
+    
+    if (options.validate) {
+      console.log(`🔎 Validating with ${options.validate}...`);
+      if (options.validate === 'openlibrary') {
+        validatedBooks = await validateAllCandidates(candidates.candidates, 'open_library');
+        await saveValidatedResults(sessionDir, extractedText, candidates, validatedBooks);
+      } else if (options.validate === 'googlebooks') {
+        validatedBooks = await validateAllCandidates(candidates.candidates, 'google_books');
+        await saveValidatedResults(sessionDir, extractedText, candidates, validatedBooks);
+      } else {
+        console.warn(`⚠️ Unknown validation provider: ${options.validate}`);
+        await saveResults(sessionDir, extractedText, candidates);
+      }
+    } else {
+      await saveResults(sessionDir, extractedText, candidates);
+    }
+    
+    // Display results
+    console.log("\n📖 EXTRACTION RESULTS:");
+    console.log("=====================");
+    
+    if (validatedBooks.length > 0) {
+      validatedBooks.forEach((book, i) => {
+        console.log(`\n${i + 1}. ${book.validationSource !== 'none' ? '✅' : '❓'} "${book.original.title}"`);
+        console.log(`   Authors: ${book.original.authors.join(', ') || 'Unknown'}`);
+        console.log(`   Confidence: ${book.confidence.toFixed(2)}`);
+        
+        if (book.validated) {
+          console.log(`   📚 Validated: "${book.validated.title}"`);
+          console.log(`   👥 Authors: ${book.validated.authors.join(', ')}`);
+          if (book.validated.isbn) console.log(`   📄 ISBN: ${book.validated.isbn}`);
+          if (book.validated.publisher) console.log(`   🏢 Publisher: ${book.validated.publisher}`);
+          if (book.validated.publishYear) console.log(`   📅 Year: ${book.validated.publishYear}`);
+          if (book.validated.openLibraryUrl) console.log(`   🔗 Open Library: ${book.validated.openLibraryUrl}`);
+          if (book.validated.googleBooksUrl) console.log(`   🔗 Google Books: ${book.validated.googleBooksUrl}`);
+        }
+      });
+      
+      const validatedCount = validatedBooks.filter(b => b.validationSource !== 'none').length;
+      console.log(`\n🎯 Summary: ${validatedCount}/${validatedBooks.length} books validated`);
+    } else {
+      candidates.candidates.forEach((candidate, i) => {
+        console.log(`${i + 1}. "${candidate.title || 'Unknown Title'}" by ${candidate.authors?.join(', ') || 'Unknown'} (${candidate.confidence.toFixed(2)})`);
+      });
+    }
+    
+    console.log(`\n💾 Complete! Results saved to: s3://${BUCKET_NAME}/${sessionDir}/`);
+    
+  } catch (error) {
+    console.error("❌ Extraction failed:", error);
+    process.exit(1);
+  }
+}
 
+async function validateCommand(options: any) {
+  const provider = options.provider || 'openlibrary';
+  console.log(`🧪 Testing ${provider} validation...\n`);
+  
+  if (provider !== 'openlibrary' && provider !== 'googlebooks') {
+    console.error("❌ Supported providers: 'openlibrary', 'googlebooks'");
+    process.exit(1);
+  }
+  
+  const providerParam = provider === 'openlibrary' ? 'open_library' : 'google_books';
+  await testValidation(providerParam);
+}
+
+async function testCommand(imagePath: string, options: any) {
+  console.log(`🧪 Running comprehensive tests on: ${imagePath}`);
+  
+  const imageName = path.basename(imagePath, path.extname(imagePath));
+  const timestamp = Date.now();
+  const sessionDir = `${imageName}-${timestamp}`;
+
+  try {
+    await ensureBucketExists();
+    const s3Key = await uploadImage(imagePath, sessionDir);
+    
     // Parse ground truth if provided
     let groundTruth: GroundTruthBook[] | undefined;
-    if (groundTruthArg && groundTruthArg !== "--test") {
+    if (options.groundTruth) {
       try {
-        groundTruth = JSON.parse(groundTruthArg);
+        groundTruth = JSON.parse(options.groundTruth);
         console.log(`📚 Ground truth provided: ${groundTruth.length} books`);
       } catch (error) {
         console.warn(`⚠️ Could not parse ground truth JSON: ${error}`);
       }
     }
+    
+    const testResults = await runTextractTests(s3Key, groundTruth);
+    printTestResults(testResults, groundTruth);
+    await saveTestResults(sessionDir, testResults, groundTruth);
 
-    if (groundTruthArg === "--test" || groundTruth) {
-      // Run comprehensive tests
-      const testResults = await runTextractTests(s3Key, groundTruth);
-      printTestResults(testResults, groundTruth);
-      await saveTestResults(sessionDir, testResults, groundTruth);
-
-      console.log(
-        `\n🎉 Testing complete! Results saved in s3://${BUCKET_NAME}/${sessionDir}/`
-      );
-      console.log(`📄 Download test-summary.txt for detailed report`);
-    } else {
-      // Run original workflow
-      const extractedText = await extractText(s3Key);
-      const candidates = await extractCandidates(extractedText);
-      await saveResults(sessionDir, extractedText, candidates);
-
-      console.log("\nExtracted Text Preview:");
-      console.log("---");
-      console.log(
-        extractedText.substring(0, 300) +
-          (extractedText.length > 300 ? "..." : "")
-      );
-      console.log("---");
-
-      console.log("\nBook Candidates:");
-      console.log("---");
-      candidates.candidates.forEach((candidate, i) => {
-        const authors =
-          candidate.authors && Array.isArray(candidate.authors)
-            ? candidate.authors.join(", ")
-            : "Unknown";
-        console.log(
-          `${i + 1}. "${
-            candidate.title || "Unknown Title"
-          }" by ${authors} (confidence: ${candidate.confidence})`
-        );
-      });
-      console.log("---");
-      console.log(
-        `Complete! Results saved in s3://${BUCKET_NAME}/${sessionDir}/`
-      );
-    }
+    console.log(`\n🎉 Testing complete! Results saved in s3://${BUCKET_NAME}/${sessionDir}/`);
+    console.log(`📄 Download test-summary.txt for detailed report`);
+    
   } catch (error) {
-    console.error("❌ Error:", error);
+    console.error("❌ Testing failed:", error);
     process.exit(1);
   }
 }
 
-main();
+async function main() {
+  const program = new Command();
+  
+  program
+    .name('bookimg')
+    .description('Extract book titles and authors from bookshelf photos using AWS Textract, Bedrock, and Open Library')
+    .version('1.0.0');
+  
+  program
+    .command('extract')
+    .description('Extract book information from an image')
+    .argument('<image-path>', 'Path to bookshelf image')
+    .option('-v, --validate <provider>', 'Validate results with provider (openlibrary, googlebooks)')
+    .action(extractCommand);
+  
+  program
+    .command('validate')
+    .description('Test book validation in isolation')
+    .option('-p, --provider <provider>', 'Validation provider to test (openlibrary, googlebooks)', 'openlibrary')
+    .action(validateCommand);
+  
+  program
+    .command('test')
+    .description('Run comprehensive Textract API tests')
+    .argument('<image-path>', 'Path to bookshelf image')
+    .option('-g, --ground-truth <json>', 'Ground truth JSON for accuracy testing')
+    .action(testCommand);
+  
+  await program.parseAsync();
+}
+
+main().catch(error => {
+  console.error("❌ Unexpected error:", error);
+  process.exit(1);
+});

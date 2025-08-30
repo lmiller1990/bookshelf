@@ -17,9 +17,15 @@ importers:
       '@aws-sdk/client-textract':
         specifier: ^3.879.0
         version: 3.879.0
+      '@types/commander':
+        specifier: ^2.12.5
+        version: 2.12.5
       '@types/node':
         specifier: ^24.3.0
         version: 24.3.0
+      commander:
+        specifier: ^14.0.0
+        version: 14.0.0
       typescript:
         specifier: ^5.9.2
         version: 5.9.2
@@ -413,6 +419,10 @@ packages:
     resolution: {integrity: sha512-mYqtQXPmrwvUljaHyGxYUIIRI3qjBTEb/f5QFi3A6VlxhpmZd5mWXn9W+qUkf2pVE1Hv3SqxefiZOPGdxmO64A==}
     engines: {node: '>=18.0.0'}
 
+  '@types/commander@2.12.5':
+    resolution: {integrity: sha512-YXGZ/rz+s57VbzcvEV9fUoXeJlBt5HaKu5iUheiIWNsJs23bz6AnRuRiZBRVBLYyPnixNvVnuzM5pSaxr8Yp/g==}
+    deprecated: This is a stub types definition. commander provides its own type definitions, so you do not need this installed.
+
   '@types/node@24.3.0':
     resolution: {integrity: sha512-aPTXCrfwnDLj4VvXrm+UUCQjNEvJgNA8s5F1cvwQU+3KNltTOkBm1j30uNLyqqPNe7gE3KFzImYoZEfLhp4Yow==}
 
@@ -421,6 +431,10 @@ packages:
 
   bowser@2.12.1:
     resolution: {integrity: sha512-z4rE2Gxh7tvshQ4hluIT7XcFrgLIQaw9X3A+kTTRdovCz5PMukm/0QC/BKSYPj3omF5Qfypn9O/c5kgpmvYUCw==}
+
+  commander@14.0.0:
+    resolution: {integrity: sha512-2uM9rYjPvyq39NwLRqaiLtWHyDC1FvryJDa2ATTVims5YAS4PupsEQsDvP14FqhFr0P49CYDugi59xaxJlTXRA==}
+    engines: {node: '>=20'}
 
   fast-xml-parser@5.2.5:
     resolution: {integrity: sha512-pfX9uG9Ki0yekDHx2SiuRIyFdyAr1kMIMitPvb0YBo8SUfKvia7w7FIyd/l6av85pFYRhZscS75MwMnbvY+hcQ==}
@@ -1382,6 +1396,10 @@ snapshots:
       '@smithy/types': 4.3.2
       tslib: 2.8.1
 
+  '@types/commander@2.12.5':
+    dependencies:
+      commander: 14.0.0
+
   '@types/node@24.3.0':
     dependencies:
       undici-types: 7.10.0
@@ -1389,6 +1407,8 @@ snapshots:
   '@types/uuid@9.0.8': {}
 
   bowser@2.12.1: {}
+
+  commander@14.0.0: {}
 
   fast-xml-parser@5.2.5:
     dependencies:
