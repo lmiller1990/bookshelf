@@ -35,29 +35,34 @@ The Genetic Lottery: Why DNA Matters for Social Equality — Kathryn Paige Harde
 Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link]
 ```
 
-## Progress So Far
+## Story so far
 
-✅ **AWS Infrastructure Setup**
-- Terraform-managed infrastructure with environment namespacing
-- IAM user with least-privilege permissions (`bookimg-uat-textract-user`)
-- Secure credential management with dedicated application profile
-- Complete documentation in `AWS_SETUP.md`
+✅ **Complete AWS Infrastructure** 
+- Two-stage Terraform deployment (bootstrap → main infrastructure)
+- Proper security architecture: Root → Deployer User → Application User
+- S3 bucket `bookimg-uat` for file storage
+- IAM user `bookimg-uat-textract-user` with minimal required permissions
+- Complete deployment documentation in `TERRAFORM.md`
 
-✅ **Basic CLI Application** (`index.js`)
-- AWS Textract integration
-- S3 bucket management 
-- Session-based file organization (`{image-name}-{timestamp}/`)
-- CLI interface for image processing
+✅ **Working CLI Application** (`index.js`)
+- Fast AWS Textract integration (1-2 second extraction)
+- S3 bucket management with session-based organization (`{image-name}-{timestamp}/`)
+- Automatic bucket creation and file upload
+- Text extraction with preview output
+- Full end-to-end workflow from image to extracted text
+
+✅ **Production-Ready Infrastructure**
+- Proper credential management across multiple AWS profiles
+- Environment-based bucket naming (`bookimg-{env}`)
+- Tested permissions and S3 operations
+- Complete troubleshooting documentation
 
 ## Next Steps
 
-🔄 **Infrastructure Improvements**
-1. **Update Terraform**: Create top-level S3 bucket `bookimg-{env}` instead of hardcoded bucket name
-2. **Dynamic Directory Management**: Each image run creates its own directory in the main bucket
-
-🔄 **Future: LLM Processing Pipeline**
-- **Step 1**: Text cleanup and candidate generation → `step1_text_cleanup.md`  
-- **Step 2**: Web search validation and scoring → `step2_web_validation.md`
+🔄 **LLM Processing Pipeline** (Current Priority)
+- Integrate AWS Bedrock for text cleanup and candidate generation
+- Transform fragmented Textract output into clean book title/author pairs
+- Handle edge cases like multi-line titles and author name variations
 
 ## How to Run
 
