@@ -158,58 +158,60 @@ flowchart TD
 - **Storage**: S3 buckets for images and results
 - **Security**: IAM roles with least-privilege access
 
-## Current Status
+## Status
 
-### ✅ Completed Features
+### ✅ Fully Functional End-to-End System
+- Web interface: https://1fd9v08g3m.execute-api.ap-southeast-2.amazonaws.com/UAT
+- WebSocket API: `wss://v4sgq1aoqj.execute-api.ap-southeast-2.amazonaws.com/UAT`
+- Real-time notifications with book validation results
 
-**Complete AWS Infrastructure**
+### 📋 Next: Granular Processing Updates
+Add intermediate status messages: Textract → Bedrock → Validation → Complete
+
+## Features
+
+### ✅ Complete AWS Infrastructure
 - Two-stage Terraform deployment (bootstrap → main infrastructure)
 - Proper security architecture: Root → Deployer User → Application User
 - Environment-based resource naming (`bookimg-{env}`)
 - Complete deployment automation
 
-**Working CLI Application**
+### ✅ Working CLI Application
 - Fast AWS Textract integration (1-2 second extraction)
 - S3 bucket management with session-based organization
 - Comprehensive testing framework for accuracy measurement
 - Support for multiple validation providers
 
-**LLM Processing Pipeline**
+### ✅ LLM Processing Pipeline
 - AWS Bedrock integration with Claude 3 Haiku
 - Structured candidate extraction from OCR output
 - JSON output with confidence scoring
 - Results saved to S3 as both raw text and parsed JSON
 
-**Multiple Book Validation Providers**
+### ✅ Multiple Book Validation Providers
 - Google Books API (excellent coverage, requires API key)
 - Open Library API (free, good for academic books)
 - Smart matching algorithms with similarity scoring
 - Rich metadata: ISBNs, publishers, publication years, cover images
 
-**Production Lambda Infrastructure**
+### ✅ Production Lambda Infrastructure
 - Complete serverless pipeline with 4 Lambda functions
 - API Gateway HTTP API with web interface
 - SQS queues with dead letter queues for error handling
 - Async processing with SNS notifications
 
-**Real-Time Web Interface**
+### ✅ Real-Time Web Interface
 - Live web interface at deployed API Gateway endpoint
 - Drag-and-drop image uploads with pre-signed S3 URLs
 - htmx-based frontend (no JavaScript framework needed)
 - Processing pipeline automatically triggered on upload
 
-**WebSocket Notification System**
+### ✅ WebSocket Notification System
 - WebSocket API Gateway for real-time connections
 - DynamoDB table for connection tracking (jobId → connectionId)
 - SNS integration for completion notifications
-- Complete async flow documentation
+- Complete async flow with real-time updates
 
-### 🔄 Next Steps
-
-- **Update upload handler** to extract jobId from S3 key path
-- **Deploy WebSocket infrastructure** and test end-to-end real-time notifications
-- **Update frontend** with WebSocket connection and job status tracking
-- **Add processing status updates** (textract complete, bedrock complete, etc.)
 
 ### 🎯 Nice to Have
 
