@@ -91,14 +91,19 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - Bedrock candidate generation Lambda
 - Book validation Lambda (with provider selection)
 
-## Next Steps
-
+## Gateay
 - Design REST API with API Gateway for web/mobile access
 - Implement async processing with SQS/SNS for long-running tasks
-- Add proper error handling, retries, and monitoring with CloudWatch
-- Configure environment-based deployments (dev/staging/prod)
+
+## Next Steps
+
+- Subscribe to SNS
+- Propogate final result to the frontend
+
+# Nice to have
 
 🔄 **Web Frontend Development**
+
 - Build responsive web interface for bookshelf photo uploads
 - Real-time processing status updates and progress indicators
 - Interactive results display with book covers, metadata, and links
