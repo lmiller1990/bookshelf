@@ -82,21 +82,30 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - Environment configuration system with `.env` file support
 - Complete validation testing framework with sample book datasets
 
-✅ **Lambdas** 
-- Create Lambda functions for each pipeline stage:
-- Image upload & processing Lambda
-- Textract extraction Lambda  
-- Bedrock candidate generation Lambda
-- Book validation Lambda (with provider selection)
+✅ **Lambdas & API Infrastructure**
+- Complete Lambda functions for each pipeline stage:
+  - Image upload & processing Lambda
+  - Textract extraction Lambda  
+  - Bedrock candidate generation Lambda
+  - Book validation Lambda (with provider selection)
+- REST API with API Gateway for web interface
+- Async processing with SQS/SNS for long-running tasks
+- Web Lambda with Fastify for upload form and pre-signed URLs
 
-## Wiring [IN PROGRESS]
-- Design REST API with API Gateway for web/mobile access
-- Implement async processing with SQS/SNS for long-running tasks
+✅ **Real-Time Notification System**
+- WebSocket API Gateway for persistent connections
+- DynamoDB table for connection tracking (jobId → connectionId mapping)
+- Connection manager Lambda (handles connect/disconnect/subscribe events)
+- SNS notification handler Lambda (receives completion notifications)
+- Complete async flow: Upload → Processing → SNS → WebSocket → Frontend
+- Documentation in `ASYNC_NOTIFICATION.md`
 
 ## Next Steps
 
-- Subscribe to SNS
-- Propogate final result to the frontend
+- **Update upload handler** to extract jobId from S3 key path
+- **Update frontend** with WebSocket connection and jobId generation
+- **Deploy infrastructure** and test end-to-end real-time notifications
+- **Add processing status updates** (textract complete, bedrock complete, etc.)
 
 # Nice to have
 
@@ -110,5 +119,6 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 # Useful Docs
 
 - [AWS_SETUP](./AWS_SETUP.md)
-- [DEPLOYMENT](./DEPLOYMENT.md)
+- [DEPLOYMENT](./DEPLOYMENT.md) 
 - [TERRAFORM](./TERRAFORM.md)
+- [ASYNC_NOTIFICATION](./ASYNC_NOTIFICATION.md) - Real-time notification architecture
