@@ -32,11 +32,9 @@ fastify.get("/", async (request, reply) => {
     <p>Upload a photo of your bookshelf to extract book titles and authors using AI.</p>
     
     <div class="upload-area" id="uploadArea">
-        <form hx-post="upload-url" hx-target="#status" hx-encoding="multipart/form-data">
-            <input type="file" name="image" accept="image/*" required id="fileInput">
-            <br><br>
-            <button type="submit" id="uploadBtn">Upload Image</button>
-        </form>
+        <input type="file" name="image" accept="image/*" required id="fileInput">
+        <br><br>
+        <button type="button" id="uploadBtn" onclick="handleUpload()">Upload Image</button>
     </div>
     
     <div id="status"></div>
@@ -63,6 +61,55 @@ fastify.get("/", async (request, reply) => {
                 fileInput.files = files;
             }
         });
+
+        // Handle upload
+        async function handleUpload() {
+            const file = fileInput.files[0];
+            if (!file) {
+                document.getElementById('status').innerHTML = 
+                    '<div class="status error">❌ No file selected</div>';
+                return;
+            }
+
+            document.getElementById('status').innerHTML = 
+                '<div class="status info">Getting upload URL...</div>';
+
+            try {
+                // Get pre-signed URL
+                const response = await fetch('upload-url?filename=' + encodeURIComponent(file.name) + '&contentType=' + encodeURIComponent(file.type), {
+                    method: 'GET'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to get upload URL');
+                }
+
+                const signedUrl = await response.text();
+                
+                document.getElementById('status').innerHTML = 
+                    '<div class="status info">Uploading to AWS S3...</div>';
+
+                // Upload to S3
+                const uploadResponse = await fetch(signedUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type
+                    }
+                });
+
+                if (uploadResponse.ok) {
+                    document.getElementById('status').innerHTML = 
+                        '<div class="status success">✅ Upload successful!</div>';
+                } else {
+                    document.getElementById('status').innerHTML = 
+                        '<div class="status error">❌ Upload failed</div>';
+                }
+            } catch (error) {
+                document.getElementById('status').innerHTML = 
+                    '<div class="status error">❌ Upload error: ' + error.message + '</div>';
+            }
+        }
     </script>
 </body>
 </html>`;
@@ -71,7 +118,7 @@ fastify.get("/", async (request, reply) => {
 });
 
 // Generate pre-signed URL for S3 upload
-fastify.post("/upload-url", async (request, reply) => {
+fastify.get("/upload-url", async (request, reply) => {
   console.log(`Request to upload-url`);
   try {
     // Get filename and content type from query parameters or default values
@@ -94,46 +141,11 @@ fastify.post("/upload-url", async (request, reply) => {
     console.log(`Generating pre-signed url for ${s3Key}`);
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
 
-    // Return htmx response that uploads to S3
-    const uploadScript = `
-      <div class="status info">Uploading to AWS S3...</div>
-      <script>
-        const fileInput = document.querySelector('#fileInput');
-        const file = fileInput.files[0];
-        if (!file) {
-          document.getElementById('status').innerHTML = 
-            '<div class="status error">❌ No file selected</div>';
-          return;
-        }
-        
-        fetch('${signedUrl}', {
-          method: 'PUT',
-          body: file,
-          headers: {
-            'Content-Type': file.type
-          }
-        })
-        .then(response => {
-          if (response.ok) {
-            document.getElementById('status').innerHTML = 
-              '<div class="status success">✅ Upload successful! Processing started...<br>Session: ${sessionDir}</div>';
-          } else {
-            document.getElementById('status').innerHTML = 
-              '<div class="status error">❌ Upload failed</div>';
-          }
-        })
-        .catch(error => {
-          document.getElementById('status').innerHTML = 
-            '<div class="status error">❌ Upload error: ' + error.message + '</div>';
-        });
-      </script>`;
-
-    reply.type("text/html").send(uploadScript);
+    // Return just the signed URL
+    reply.type("text/plain").send(signedUrl);
   } catch (error) {
     console.error("Upload URL generation failed:", error);
-    reply
-      .code(500)
-      .send('<div class="status error">Failed to generate upload URL</div>');
+    reply.code(500).send("Failed to generate upload URL");
   }
 });
 

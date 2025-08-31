@@ -109,6 +109,19 @@ resource "aws_s3_bucket" "bookimg_bucket" {
   }
 }
 
+# S3 bucket CORS configuration
+resource "aws_s3_bucket_cors_configuration" "bookimg_bucket_cors" {
+  bucket = aws_s3_bucket.bookimg_bucket.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
+    allowed_origins = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
 # S3 bucket for processing results
 resource "aws_s3_bucket" "bookimg_results" {
   bucket = "${local.resource_prefix}-results"
