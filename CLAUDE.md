@@ -3,17 +3,63 @@
 Extract book titles and authors from photos of bookshelves using AWS services and LLM agents.
 
 ## Overview
-1. **Text Extraction**: Use AWS Textract to extract text from book spine images
-2. **Text Processing**: Parse fragmented text into title/author candidates using AWS Bedrock LLM
-3. **Validation**: Verify candidates via web search and confidence scoring
-4. **Link Discovery**: Find purchase links (Amazon, other retailers) for validated books
 
-## Example Workflow
-**Input**: Photo of bookshelf
-**Textract Output**: Fragmented text (see example below)
-**Final Output**: Clean title/author pairs with purchase links
+BookImg processes bookshelf photos through a multi-stage pipeline:
 
-### Sample Textract Output
+1. **Text Extraction**: AWS Textract extracts text from book spine images
+2. **Candidate Generation**: AWS Bedrock (Claude 3 Haiku) parses fragmented text into title/author pairs
+3. **Validation**: Multiple providers (Google Books, Open Library) validate and enrich book metadata
+4. **Results**: Clean title/author pairs with ISBN, publisher, publication year, and purchase links
+
+## Quick Start
+
+### Installation
+```bash
+# Install dependencies
+npm install
+
+# Configure AWS credentials (see DEPLOYMENT.md for setup)
+aws configure --profile bookimg-app
+```
+
+### Usage
+```bash
+# Basic extraction (AWS Textract + Bedrock only)
+node index.ts extract bookshelf.jpg
+
+# Extract with validation (requires API key in .env file)
+node --env-file=.env index.ts extract bookshelf.jpg --validate googlebooks
+
+# Test validation providers
+node index.ts validate --provider openlibrary
+```
+
+### Environment Setup
+Create a `.env` file for Google Books validation:
+```bash
+GOOGLE_BOOKS_API_KEY=your_api_key_here
+```
+
+## Architecture
+
+### High-Level Data Flow
+```
+Bookshelf Photo
+    ↓ (Upload)
+AWS Textract (OCR)
+    ↓ (Fragmented Text)
+AWS Bedrock Claude (LLM Processing)
+    ↓ (Structured Candidates)
+Google Books / Open Library APIs (Validation)
+    ↓ (Enriched Metadata)
+Final Results (Title, Author, ISBN, Links)
+```
+
+### Example Data Transformation
+
+**Input**: Bookshelf photo
+
+**Textract Output** (Fragmented):
 ```
 DANIEL C. DENNETT FROM BACTERIA TO BACH AND BACK
 HARDEN
@@ -21,104 +67,228 @@ THE GENETIC
 WHY DNA MATTERS
 LOTTERY
 FOR SOCIAL EQUALITY
-Rebel Cell
-Cancer, Evolution and
-KAT
-the Science of Life
-ARNEY
 ```
 
-### Expected Final Output
-```
-From Bacteria to Bach and Back — Daniel C. Dennett [Amazon Link]
-The Genetic Lottery: Why DNA Matters for Social Equality — Kathryn Paige Harden [Amazon Link]
-Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link]
+**Bedrock Output** (Structured):
+```json
+{
+  "candidates": [
+    {
+      "title": "From Bacteria to Bach and Back",
+      "author": "Daniel C. Dennett",
+      "confidence": 0.95
+    },
+    {
+      "title": "The Genetic Lottery: Why DNA Matters for Social Equality",
+      "author": "Kathryn Paige Harden", 
+      "confidence": 0.88
+    }
+  ]
+}
 ```
 
-## Story so far
+**Final Output** (Validated):
+```json
+{
+  "books": [
+    {
+      "title": "From Bacteria to Bach and Back: The Evolution of Minds",
+      "author": "Daniel C. Dennett",
+      "isbn": "9780393242072",
+      "publisher": "W. W. Norton & Company",
+      "publishedDate": "2017-02-07",
+      "confidence": 0.95,
+      "validated": true,
+      "purchaseLinks": {
+        "googleBooks": "https://books.google.com/books?id=..."
+      }
+    }
+  ]
+}
+```
 
-✅ **Complete AWS Infrastructure** 
+### Production Infrastructure
+
+The system runs entirely on AWS serverless infrastructure:
+
+```mermaid
+flowchart TD
+    subgraph Browser["🌐 Browser"]
+        A[Upload Image]
+        Z[Display Results]
+    end
+    
+    subgraph S3["📦 S3 Storage"]
+        B[Image Bucket]
+        Y[Results Bucket]
+    end
+    
+    subgraph Lambda["⚡ Lambda Functions"]
+        C[Upload Handler]
+        E[Textract Processor]
+        H[Bedrock LLM]
+        K[Book Validator]
+    end
+    
+    subgraph SQS["📬 SQS Queues"]
+        D[Textract Queue]
+        G[Bedrock Queue]
+        J[Validation Queue]
+    end
+    
+    subgraph AWS["☁️ AWS Services"]
+        F[Textract OCR]
+        I[Bedrock Claude]
+        L[External APIs]
+    end
+    
+    subgraph Messaging["📢 SNS/WebSocket"]
+        M[SNS Topic]
+        N[WebSocket Connection]
+    end
+
+    A --> B
+    B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> Y --> M --> N --> Z
+```
+
+**Key Components:**
+- **Web Interface**: API Gateway + Lambda serving htmx-based upload form
+- **Processing Pipeline**: 4 Lambda functions connected via SQS queues
+- **Real-time Notifications**: WebSocket API + DynamoDB for connection tracking
+- **Storage**: S3 buckets for images and results
+- **Security**: IAM roles with least-privilege access
+
+## Current Status
+
+### ✅ Completed Features
+
+**Complete AWS Infrastructure**
 - Two-stage Terraform deployment (bootstrap → main infrastructure)
 - Proper security architecture: Root → Deployer User → Application User
-- S3 bucket `bookimg-uat` for file storage
-- IAM user `bookimg-uat-textract-user` with minimal required permissions
-- Complete deployment documentation in `TERRAFORM.md`
+- Environment-based resource naming (`bookimg-{env}`)
+- Complete deployment automation
 
-✅ **Working CLI Application** (`index.ts`)
+**Working CLI Application**
 - Fast AWS Textract integration (1-2 second extraction)
-- S3 bucket management with session-based organization (`{image-name}-{timestamp}/`)
-- Automatic bucket creation and file upload
-- Text extraction with preview output
-- Full end-to-end workflow from image to extracted text
+- S3 bucket management with session-based organization
+- Comprehensive testing framework for accuracy measurement
+- Support for multiple validation providers
 
-✅ **Production-Ready Infrastructure**
-- Proper credential management across multiple AWS profiles
-- Environment-based bucket naming (`bookimg-{env}`)
-- Tested permissions and S3 operations
-- Complete troubleshooting documentation
-
-✅ **Working LLM Processing Pipeline** 
+**LLM Processing Pipeline**
 - AWS Bedrock integration with Claude 3 Haiku
-- Structured candidate extraction from Textract OCR output
-- JSON output with confidence scoring for book title/author pairs
-- End-to-end workflow: Image → Textract → Bedrock → Structured candidates
+- Structured candidate extraction from OCR output
+- JSON output with confidence scoring
 - Results saved to S3 as both raw text and parsed JSON
 
-✅ **OCR Working Well**
-- Comprehensive testing framework for different Textract APIs and parameters
-- DetectDocumentText performing reliably for book spine text extraction
-- Enhanced Bedrock prompt with support for subtitles and better extraction rules
-- Ground truth comparison system for accuracy measurement
-- Detailed testing output with confidence scores and accuracy rankings
-- Testing documentation in `TEXTRACT_TESTING.md`
+**Multiple Book Validation Providers**
+- Google Books API (excellent coverage, requires API key)
+- Open Library API (free, good for academic books)
+- Smart matching algorithms with similarity scoring
+- Rich metadata: ISBNs, publishers, publication years, cover images
 
-✅ **Multiple Book Validation Providers**
-- Integrated Google Books API for comprehensive book validation (9/11 books validated)
-- Maintained Open Library API as free alternative (7/11 books validated) 
-- Implemented smart matching algorithms with title/author similarity scoring
-- Rich metadata enrichment: ISBNs, publishers, publication years, cover images
-- Provider comparison and recommendation system
-- Full CLI support with `--validate openlibrary` and `--validate googlebooks`
-- Environment configuration system with `.env` file support
-- Complete validation testing framework with sample book datasets
+**Production Lambda Infrastructure**
+- Complete serverless pipeline with 4 Lambda functions
+- API Gateway HTTP API with web interface
+- SQS queues with dead letter queues for error handling
+- Async processing with SNS notifications
 
-✅ **Lambdas & API Infrastructure**
-- Complete Lambda functions for each pipeline stage:
-  - Image upload & processing Lambda
-  - Textract extraction Lambda  
-  - Bedrock candidate generation Lambda
-  - Book validation Lambda (with provider selection)
-- REST API with API Gateway for web interface
-- Async processing with SQS/SNS for long-running tasks
-- Web Lambda with Fastify for upload form and pre-signed URLs
+**Real-Time Web Interface**
+- Live web interface at deployed API Gateway endpoint
+- Drag-and-drop image uploads with pre-signed S3 URLs
+- htmx-based frontend (no JavaScript framework needed)
+- Processing pipeline automatically triggered on upload
 
-✅ **Real-Time Notification System**
-- WebSocket API Gateway for persistent connections
-- DynamoDB table for connection tracking (jobId → connectionId mapping)
-- Connection manager Lambda (handles connect/disconnect/subscribe events)
-- SNS notification handler Lambda (receives completion notifications)
-- Complete async flow: Upload → Processing → SNS → WebSocket → Frontend
-- Documentation in `ASYNC_NOTIFICATION.md`
+**WebSocket Notification System**
+- WebSocket API Gateway for real-time connections
+- DynamoDB table for connection tracking (jobId → connectionId)
+- SNS integration for completion notifications
+- Complete async flow documentation
 
-## Next Steps
+### 🔄 Next Steps
 
 - **Update upload handler** to extract jobId from S3 key path
-- **Update frontend** with WebSocket connection and jobId generation
-- **Deploy infrastructure** and test end-to-end real-time notifications
+- **Deploy WebSocket infrastructure** and test end-to-end real-time notifications
+- **Update frontend** with WebSocket connection and job status tracking
 - **Add processing status updates** (textract complete, bedrock complete, etc.)
 
-# Nice to have
+### 🎯 Nice to Have
 
-🔄 **Web Frontend Development**
+**Enhanced Web Frontend**
+- Mobile-responsive design optimized for smartphone cameras
+- Interactive results display with book covers and metadata
+- Batch processing for multiple images
+- User accounts and processing history
 
-- Build responsive web interface for bookshelf photo uploads
-- Real-time processing status updates and progress indicators
-- Interactive results display with book covers, metadata, and links
-- Mobile-responsive design for smartphone camera integration
+## Validation Providers
 
-# Useful Docs
+### Open Library
+- ✅ **Free**: No API key required
+- ✅ **Good coverage**: Strong for academic and older books  
+- ✅ **Rich metadata**: ISBNs, publishers, publication years
+- ⚠️ **Rate limited**: 1 request per second
 
-- [AWS_SETUP](./AWS_SETUP.md)
-- [DEPLOYMENT](./DEPLOYMENT.md) 
-- [TERRAFORM](./TERRAFORM.md)
-- [ASYNC_NOTIFICATION](./ASYNC_NOTIFICATION.md) - Real-time notification architecture
+### Google Books
+- ✅ **Excellent coverage**: Often finds books Open Library misses
+- ✅ **Rich metadata**: Complete bibliographic information
+- ✅ **Fast responses**: Higher rate limits
+- ⚠️ **Requires setup**: API key and Books API enablement
+- 💰 **Usage limits**: Free tier has daily quotas
+
+**Recommendation**: Use Google Books for best results, Open Library as free alternative.
+
+## Commands
+
+### `extract <image-path>`
+Extract book information from a bookshelf image.
+
+```bash
+# Basic extraction
+node index.ts extract bookshelf.jpg
+
+# With validation
+node index.ts extract bookshelf.jpg --validate openlibrary
+node --env-file=.env index.ts extract bookshelf.jpg --validate googlebooks
+```
+
+### `validate`
+Test book validation in isolation with sample data.
+
+```bash
+# Test default provider (Open Library)
+node index.ts validate
+
+# Test specific provider
+node --env-file=.env index.ts validate --provider googlebooks
+```
+
+### `test <image-path>`
+Run comprehensive Textract API tests for accuracy comparison.
+
+```bash
+node index.ts test bookshelf.jpg --ground-truth '[{"title":"Book Title","authors":["Author"]}]'
+```
+
+## Configuration
+
+- **AWS Region**: `ap-southeast-2`
+- **S3 Buckets**: `bookimg-uat` (uploads), `bookimg-uat-results` (processing)
+- **Bedrock Model**: `anthropic.claude-3-haiku-20240307-v1:0`
+- **Web Interface**: Deployed at API Gateway endpoint (see deployment outputs)
+
+## Documentation
+
+### Deployment & Setup
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete infrastructure deployment guide
+- **[TERRAFORM.md](./TERRAFORM.md)** - Terraform-specific deployment steps
+
+### Architecture Details  
+- **[ASYNC_NOTIFICATION.md](./ASYNC_NOTIFICATION.md)** - Real-time WebSocket notification system
+
+### Getting Started
+For first-time setup, follow the deployment guide to:
+1. Bootstrap AWS infrastructure with Terraform
+2. Deploy main infrastructure and Lambda functions
+3. Configure AWS profiles for application access
+4. Test the CLI and web interface
+
+The system is designed for production use with proper security, monitoring, and error handling throughout the pipeline.

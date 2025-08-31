@@ -19,7 +19,7 @@ This document provides comprehensive deployment guidance for the BookImg AI book
    - pnpm (for main project development)
 
 ### AWS Account Setup
-Complete the AWS setup following `AWS_SETUP.md` including:
+Complete the AWS setup following `TERRAFORM.md` including:
 - Bootstrap Terraform state bucket
 - IAM users and roles configuration
 - AWS profile configuration
