@@ -10,3 +10,4 @@ IMG_*
 *.tfstate.backup
 .terraform.lock.hcl
 .env
+*.zip

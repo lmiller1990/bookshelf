@@ -281,6 +281,16 @@ resource "aws_iam_policy" "lambda_service_policy" {
       {
         Effect = "Allow"
         Action = [
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.bookimg_bucket.arn,
+          aws_s3_bucket.bookimg_results.arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "sqs:ReceiveMessage",
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes",
@@ -351,6 +361,12 @@ data "archive_file" "book_validator" {
   type        = "zip"
   source_file = "lambdas/book-validator.js"
   output_path = "book_validator.zip"
+}
+
+data "archive_file" "web_lambda" {
+  type        = "zip"
+  source_dir  = "lambda-web-dist"
+  output_path = "web_lambda.zip"
 }
 
 # Lambda Functions
@@ -445,6 +461,22 @@ resource "aws_lambda_function" "book_validator" {
   }
 }
 
+resource "aws_lambda_function" "web_lambda" {
+  filename         = data.archive_file.web_lambda.output_path
+  source_code_hash = data.archive_file.web_lambda.output_base64sha256
+  function_name    = "${local.resource_prefix}-web"
+  role            = aws_iam_role.lambda_execution_role.arn
+  handler         = "lambda-web.handler"
+  runtime         = "nodejs20.x"
+  timeout         = 30
+
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "Web interface for uploads"
+  }
+}
+
 # Lambda permissions for S3 to invoke upload handler
 resource "aws_lambda_permission" "s3_invoke_upload_handler" {
   statement_id  = "AllowExecutionFromS3Bucket"
@@ -471,6 +503,63 @@ resource "aws_lambda_event_source_mapping" "validation_queue_mapping" {
   event_source_arn = aws_sqs_queue.validation_queue.arn
   function_name    = aws_lambda_function.book_validator.arn
   batch_size       = 1
+}
+
+# API Gateway for web interface
+resource "aws_apigatewayv2_api" "web_api" {
+  name          = "${local.resource_prefix}-web-api"
+  protocol_type = "HTTP"
+  description   = "BookImg Web Interface API"
+  
+  cors_configuration {
+    allow_credentials = false
+    allow_headers     = ["*"]
+    allow_methods     = ["GET", "POST", "OPTIONS"]
+    allow_origins     = ["*"]
+    max_age          = 300
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+  }
+}
+
+resource "aws_apigatewayv2_integration" "web_lambda_integration" {
+  api_id           = aws_apigatewayv2_api.web_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.web_lambda.invoke_arn
+}
+
+resource "aws_apigatewayv2_route" "web_route_catch_all" {
+  api_id    = aws_apigatewayv2_api.web_api.id
+  route_key = "ANY /{proxy+}"
+  target    = "integrations/${aws_apigatewayv2_integration.web_lambda_integration.id}"
+}
+
+resource "aws_apigatewayv2_route" "web_route_root" {
+  api_id    = aws_apigatewayv2_api.web_api.id
+  route_key = "ANY /"
+  target    = "integrations/${aws_apigatewayv2_integration.web_lambda_integration.id}"
+}
+
+resource "aws_apigatewayv2_stage" "web_stage" {
+  api_id      = aws_apigatewayv2_api.web_api.id
+  name        = var.environment
+  auto_deploy = true
+
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+  }
+}
+
+resource "aws_lambda_permission" "api_gateway_invoke_web_lambda" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.web_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.web_api.execution_arn}/*/*"
 }
 
 # Create access key for the user
@@ -513,7 +602,12 @@ output "lambda_functions" {
     textract_processor = aws_lambda_function.textract_processor.function_name
     bedrock_processor  = aws_lambda_function.bedrock_processor.function_name
     book_validator     = aws_lambda_function.book_validator.function_name
+    web_lambda         = aws_lambda_function.web_lambda.function_name
   }
+}
+
+output "web_api_url" {
+  value = aws_apigatewayv2_stage.web_stage.invoke_url
 }
 
 output "access_key_id" {

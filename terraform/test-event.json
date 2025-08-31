@@ -1,0 +1,38 @@
+{
+    "version": "1.0",
+    "resource": "/",
+    "path": "/",
+    "httpMethod": "GET",
+    "headers": {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    },
+    "multiValueHeaders": {},
+    "queryStringParameters": {},
+    "multiValueQueryStringParameters": {},
+    "requestContext": {
+        "accountId": "058664348318",
+        "apiId": "1fd9v08g3m",
+        "protocol": "HTTP/1.1",
+        "httpMethod": "GET",
+        "path": "/",
+        "stage": "UAT",
+        "requestId": "test-request-id",
+        "requestTime": "09/Dec/2015:09:35:30 +0000",
+        "requestTimeEpoch": 1449662130,
+        "identity": {
+            "cognitoIdentityPoolId": null,
+            "accountId": null,
+            "cognitoIdentityId": null,
+            "caller": null,
+            "accessKey": null,
+            "sourceIp": "127.0.0.1",
+            "cognitoAuthenticationType": null,
+            "cognitoAuthenticationProvider": null,
+            "userArn": null,
+            "userAgent": "Custom User Agent String",
+            "user": null
+        }
+    },
+    "body": null,
+    "isBase64Encoded": false
+}
