@@ -26,6 +26,9 @@ locals {
   s3_bucket_name  = local.resource_prefix
 }
 
+# Data sources
+data "aws_region" "current" {}
+
 # Use deployer credentials (configured via aws configure --profile bookimg-deployer)
 provider "aws" {
   profile = "bookimg-deployer"
@@ -236,6 +239,30 @@ resource "aws_sns_topic" "results_notifications" {
   }
 }
 
+# DynamoDB table for WebSocket connections
+resource "aws_dynamodb_table" "websocket_connections" {
+  name           = "${local.resource_prefix}-websocket-connections"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "jobId"
+  
+  attribute {
+    name = "jobId"
+    type = "S"
+  }
+  
+  # TTL to auto-cleanup old connections (1 hour)
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+  
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "WebSocket connection tracking"
+  }
+}
+
 # Lambda execution role
 resource "aws_iam_role" "lambda_execution_role" {
   name = "${local.resource_prefix}-lambda-execution-role"
@@ -335,6 +362,28 @@ resource "aws_iam_policy" "lambda_service_policy" {
           "sns:Publish"
         ]
         Resource = aws_sns_topic.results_notifications.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ]
+        Resource = [
+          aws_dynamodb_table.websocket_connections.arn,
+          "${aws_dynamodb_table.websocket_connections.arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "execute-api:ManageConnections"
+        ]
+        Resource = "${aws_apigatewayv2_api.websocket_api.execution_arn}/*/*"
       }
     ]
   })
@@ -380,6 +429,18 @@ data "archive_file" "web_lambda" {
   type        = "zip"
   source_dir  = "lambda-web-dist"
   output_path = "web_lambda.zip"
+}
+
+data "archive_file" "websocket_connection_manager" {
+  type        = "zip"
+  source_file = "lambdas/websocket-connection-manager.js"
+  output_path = "websocket_connection_manager.zip"
+}
+
+data "archive_file" "sns_notification_handler" {
+  type        = "zip"
+  source_file = "lambdas/sns-notification-handler.js"
+  output_path = "sns_notification_handler.zip"
 }
 
 # Lambda Functions
@@ -490,6 +551,51 @@ resource "aws_lambda_function" "web_lambda" {
   }
 }
 
+resource "aws_lambda_function" "websocket_connection_manager" {
+  filename         = data.archive_file.websocket_connection_manager.output_path
+  source_code_hash = data.archive_file.websocket_connection_manager.output_base64sha256
+  function_name    = "${local.resource_prefix}-websocket-connection-manager"
+  role            = aws_iam_role.lambda_execution_role.arn
+  handler         = "websocket-connection-manager.handler"
+  runtime         = "nodejs20.x"
+  timeout         = 30
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.websocket_connections.name
+    }
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "WebSocket connection management"
+  }
+}
+
+resource "aws_lambda_function" "sns_notification_handler" {
+  filename         = data.archive_file.sns_notification_handler.output_path
+  source_code_hash = data.archive_file.sns_notification_handler.output_base64sha256
+  function_name    = "${local.resource_prefix}-sns-notification-handler"
+  role            = aws_iam_role.lambda_execution_role.arn
+  handler         = "sns-notification-handler.handler"
+  runtime         = "nodejs20.x"
+  timeout         = 30
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.websocket_connections.name
+      WEBSOCKET_API_ENDPOINT = "https://${aws_apigatewayv2_api.websocket_api.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${aws_apigatewayv2_stage.websocket_stage.name}"
+    }
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "SNS to WebSocket notification handler"
+  }
+}
+
 # Lambda permissions for S3 to invoke upload handler
 resource "aws_lambda_permission" "s3_invoke_upload_handler" {
   statement_id  = "AllowExecutionFromS3Bucket"
@@ -516,6 +622,46 @@ resource "aws_lambda_event_source_mapping" "validation_queue_mapping" {
   event_source_arn = aws_sqs_queue.validation_queue.arn
   function_name    = aws_lambda_function.book_validator.arn
   batch_size       = 1
+}
+
+# WebSocket Lambda permissions
+resource "aws_lambda_permission" "websocket_connect_permission" {
+  statement_id  = "AllowExecutionFromWebSocketConnect"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.websocket_connection_manager.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.websocket_api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "websocket_disconnect_permission" {
+  statement_id  = "AllowExecutionFromWebSocketDisconnect"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.websocket_connection_manager.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.websocket_api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "websocket_default_permission" {
+  statement_id  = "AllowExecutionFromWebSocketDefault"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.websocket_connection_manager.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.websocket_api.execution_arn}/*/*"
+}
+
+# SNS subscription for notification handler
+resource "aws_sns_topic_subscription" "sns_notification_handler" {
+  topic_arn = aws_sns_topic.results_notifications.arn
+  protocol  = "lambda"
+  endpoint  = aws_lambda_function.sns_notification_handler.arn
+}
+
+resource "aws_lambda_permission" "sns_invoke_notification_handler" {
+  statement_id  = "AllowExecutionFromSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.sns_notification_handler.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = aws_sns_topic.results_notifications.arn
 }
 
 # API Gateway for web interface
@@ -575,6 +721,69 @@ resource "aws_lambda_permission" "api_gateway_invoke_web_lambda" {
   source_arn    = "${aws_apigatewayv2_api.web_api.execution_arn}/*/*"
 }
 
+# WebSocket API Gateway
+resource "aws_apigatewayv2_api" "websocket_api" {
+  name          = "${local.resource_prefix}-websocket-api"
+  protocol_type = "WEBSOCKET"
+  route_selection_expression = "$request.body.action"
+  description   = "BookImg WebSocket API for real-time notifications"
+
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+  }
+}
+
+# WebSocket API routes
+resource "aws_apigatewayv2_route" "websocket_connect" {
+  api_id    = aws_apigatewayv2_api.websocket_api.id
+  route_key = "$connect"
+  target    = "integrations/${aws_apigatewayv2_integration.websocket_connect_integration.id}"
+}
+
+resource "aws_apigatewayv2_route" "websocket_disconnect" {
+  api_id    = aws_apigatewayv2_api.websocket_api.id
+  route_key = "$disconnect"
+  target    = "integrations/${aws_apigatewayv2_integration.websocket_disconnect_integration.id}"
+}
+
+resource "aws_apigatewayv2_route" "websocket_default" {
+  api_id    = aws_apigatewayv2_api.websocket_api.id
+  route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.websocket_default_integration.id}"
+}
+
+# WebSocket integrations
+resource "aws_apigatewayv2_integration" "websocket_connect_integration" {
+  api_id           = aws_apigatewayv2_api.websocket_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.websocket_connection_manager.invoke_arn
+}
+
+resource "aws_apigatewayv2_integration" "websocket_disconnect_integration" {
+  api_id           = aws_apigatewayv2_api.websocket_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.websocket_connection_manager.invoke_arn
+}
+
+resource "aws_apigatewayv2_integration" "websocket_default_integration" {
+  api_id           = aws_apigatewayv2_api.websocket_api.id
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.websocket_connection_manager.invoke_arn
+}
+
+# WebSocket stage
+resource "aws_apigatewayv2_stage" "websocket_stage" {
+  api_id      = aws_apigatewayv2_api.websocket_api.id
+  name        = var.environment
+  auto_deploy = true
+
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+  }
+}
+
 # Create access key for the user
 resource "aws_iam_access_key" "bookimg_access_key" {
   user = aws_iam_user.bookimg_textract_user.name
@@ -611,16 +820,26 @@ output "sns_topic_arn" {
 
 output "lambda_functions" {
   value = {
-    upload_handler     = aws_lambda_function.upload_handler.function_name
-    textract_processor = aws_lambda_function.textract_processor.function_name
-    bedrock_processor  = aws_lambda_function.bedrock_processor.function_name
-    book_validator     = aws_lambda_function.book_validator.function_name
-    web_lambda         = aws_lambda_function.web_lambda.function_name
+    upload_handler               = aws_lambda_function.upload_handler.function_name
+    textract_processor          = aws_lambda_function.textract_processor.function_name
+    bedrock_processor           = aws_lambda_function.bedrock_processor.function_name
+    book_validator              = aws_lambda_function.book_validator.function_name
+    web_lambda                  = aws_lambda_function.web_lambda.function_name
+    websocket_connection_manager = aws_lambda_function.websocket_connection_manager.function_name
+    sns_notification_handler    = aws_lambda_function.sns_notification_handler.function_name
   }
 }
 
 output "web_api_url" {
   value = aws_apigatewayv2_stage.web_stage.invoke_url
+}
+
+output "websocket_api_url" {
+  value = "wss://${aws_apigatewayv2_api.websocket_api.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${aws_apigatewayv2_stage.websocket_stage.name}"
+}
+
+output "dynamodb_connections_table" {
+  value = aws_dynamodb_table.websocket_connections.name
 }
 
 output "access_key_id" {

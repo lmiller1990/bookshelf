@@ -82,16 +82,14 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - Environment configuration system with `.env` file support
 - Complete validation testing framework with sample book datasets
 
-✅ **Lambdas**
-
-🔄 **AWS Lambda API Productionization**
+✅ **Lambdas** 
 - Create Lambda functions for each pipeline stage:
 - Image upload & processing Lambda
 - Textract extraction Lambda  
 - Bedrock candidate generation Lambda
 - Book validation Lambda (with provider selection)
 
-## Gateay
+## Wiring [IN PROGRESS]
 - Design REST API with API Gateway for web/mobile access
 - Implement async processing with SQS/SNS for long-running tasks
 
@@ -107,46 +105,10 @@ Rebel Cell: Cancer, Evolution and the Science of Life — Kat Arney [Amazon Link
 - Build responsive web interface for bookshelf photo uploads
 - Real-time processing status updates and progress indicators
 - Interactive results display with book covers, metadata, and links
-- Provider selection (Open Library vs Google Books) in UI
-- Book collection management and export features
 - Mobile-responsive design for smartphone camera integration
 
-🔄 **Purchase Link Discovery & Enhancement**
-- Add Amazon affiliate link generation from ISBNs
-- Integrate Bookshop.org API for independent bookstore support
-- Price comparison across multiple retailers
-- Availability checking and stock status
-- Create book information enrichment workflows
+# Useful Docs
 
-## How to Run
-
-### Prerequisites
-1. **AWS Setup** (see setup instructions below)
-2. **Dependencies**: `pnpm install` (already done)
-
-### Usage
-```bash
-node index.js path/to/bookshelf-image.jpg
-```
-
-### AWS Setup Instructions
-
-See [AWS_SEUTUP](./AWS_SETUP.md)
-
-### What It Does
-1. Creates/verifies `book-detect` S3 bucket
-2. Uploads image to `{image-name}-{timestamp}/` directory
-3. Runs AWS Textract to extract text
-4. Saves results as `extracted-text.txt` in same directory
-5. Shows preview of extracted text
-
-## Architecture Notes
-
-- Use AWS Bedrock for LLM processing (text cleanup, candidate generation)
-- Leverage web search APIs for validation
-- Prioritize "hands off" AWS-native workflow where possible
-
-## Resources
-
-- [AWS Bedrock FAQs](https://aws.amazon.com/bedrock/faqs/)
-- [AWS Textract Documentation](https://docs.aws.amazon.com/textract/latest/dg/what-is.html)
+- [AWS_SETUP](./AWS_SETUP.md)
+- [DEPLOYMENT](./DEPLOYMENT.md)
+- [TERRAFORM](./TERRAFORM.md)
