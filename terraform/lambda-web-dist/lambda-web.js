@@ -6,7 +6,6 @@ const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const s3Client = new S3Client({ region: "ap-southeast-2" });
 const BUCKET_NAME = "bookimg-uat";
 
-
 // Home page with upload form
 fastify.get("/", async (request, reply) => {
   const html = `
@@ -62,6 +61,8 @@ fastify.get("/", async (request, reply) => {
             }
         });
 
+        let websocket = null;
+
         // Handle upload
         async function handleUpload() {
             const file = fileInput.files[0];
@@ -86,8 +87,16 @@ fastify.get("/", async (request, reply) => {
 
                 const signedUrl = await response.text();
                 
+                // Extract jobId from signed URL
+                const urlParts = new URL(signedUrl);
+                const s3Key = urlParts.pathname.substring(1); // Remove leading slash
+                const jobId = s3Key.split('/')[0]; // Get directory name as jobId
+                
                 document.getElementById('status').innerHTML = 
                     '<div class="status info">Uploading to AWS S3...</div>';
+
+                // Connect to WebSocket before uploading
+                await connectWebSocket(jobId);
 
                 // Upload to S3
                 const uploadResponse = await fetch(signedUrl, {
@@ -100,15 +109,79 @@ fastify.get("/", async (request, reply) => {
 
                 if (uploadResponse.ok) {
                     document.getElementById('status').innerHTML = 
-                        '<div class="status success">✅ Upload successful!</div>';
+                        '<div class="status info">✅ Upload successful! Processing started...<br><small>Job ID: ' + jobId + '</small></div>';
                 } else {
                     document.getElementById('status').innerHTML = 
                         '<div class="status error">❌ Upload failed</div>';
+                    if (websocket) websocket.close();
                 }
             } catch (error) {
                 document.getElementById('status').innerHTML = 
                     '<div class="status error">❌ Upload error: ' + error.message + '</div>';
+                if (websocket) websocket.close();
             }
+        }
+
+        async function connectWebSocket(jobId) {
+            return new Promise((resolve, reject) => {
+                websocket = new WebSocket('wss://v4sgq1aoqj.execute-api.ap-southeast-2.amazonaws.com/UAT');
+                
+                websocket.onopen = function() {
+                    console.log('WebSocket connected');
+                    // Subscribe to job notifications
+                    websocket.send(JSON.stringify({
+                        action: 'subscribe',
+                        jobId: jobId
+                    }));
+                    resolve();
+                };
+                
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('WebSocket message:', data);
+                        
+                        if (data.type === 'subscribed') {
+                            document.getElementById('status').innerHTML = 
+                                '<div class="status info">🔗 Connected to real-time updates</div>';
+                        } else if (data.type === 'processingComplete') {
+                            const results = data.results;
+                            if (results && results.books && results.books.length > 0) {
+                                let booksHtml = '<h3>📚 Books Found:</h3><ul>';
+                                results.books.forEach(book => {
+                                    const title = book.validation?.title || book.title;
+                                    const authors = book.validation?.authors?.join(', ') || book.author;
+                                    booksHtml += '<li><strong>' + title + '</strong> by ' + authors;
+                                    if (book.validation?.validated) booksHtml += ' ✅';
+                                    if (book.validation?.isbn) booksHtml += ' (ISBN: ' + book.validation.isbn + ')';
+                                    booksHtml += '</li>';
+                                });
+                                booksHtml += '</ul>';
+                                
+                                document.getElementById('status').innerHTML = 
+                                    '<div class="status success">🎉 Processing Complete!<br>' + 
+                                    '<small>Found ' + results.totalCandidates + ' candidates, validated ' + results.validatedBooks + ' books</small>' +
+                                    booksHtml + '</div>';
+                            } else {
+                                document.getElementById('status').innerHTML = 
+                                    '<div class="status info">✅ Processing complete - no books found in image</div>';
+                            }
+                            websocket.close();
+                        }
+                    } catch (e) {
+                        console.error('Error parsing WebSocket message:', e);
+                    }
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    reject(error);
+                };
+                
+                websocket.onclose = function() {
+                    console.log('WebSocket disconnected');
+                };
+            });
         }
     </script>
 </body>
@@ -123,7 +196,7 @@ fastify.get("/upload-url", async (request, reply) => {
   try {
     // Get filename and content type from query parameters or default values
     const filename = request.query.filename || `upload-${Date.now()}.jpg`;
-    const contentType = request.query.contentType || 'image/jpeg';
+    const contentType = request.query.contentType || "image/jpeg";
 
     // Generate unique filename
     const timestamp = Date.now();

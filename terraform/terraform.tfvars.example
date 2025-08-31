@@ -1,0 +1,7 @@
+# Environment configuration
+environment = "UAT"
+
+# Google Books API Key for book validation
+# Get your API key from: https://console.cloud.google.com/apis/credentials
+# Enable the Books API: https://console.cloud.google.com/apis/library/books.googleapis.com
+google_books_api_key = "your-google-books-api-key-here"

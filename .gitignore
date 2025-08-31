@@ -9,5 +9,10 @@ IMG_*
 *.tfstate.*
 *.tfstate.backup
 .terraform.lock.hcl
+
+# Environment and secrets
 .env
+terraform.tfvars
+
+# Build artifacts
 *.zip

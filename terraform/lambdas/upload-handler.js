@@ -16,10 +16,16 @@ exports.handler = async (event) => {
             // Send message to Textract queue
             const queueUrl = process.env.TEXTRACT_QUEUE_URL;
             
+            // Extract jobId from S3 key path
+            // Key format: "originalName-timestamp/originalName"
+            const keyParts = key.split('/');
+            const sessionDir = keyParts[0]; // e.g., "bookshelf-1693234567890"
+            const jobId = sessionDir; // Use the full session directory as jobId
+            
             const message = {
                 bucket: bucket,
                 key: key,
-                jobId: `job-${Date.now()}`,
+                jobId: jobId,
                 timestamp: new Date().toISOString()
             };
             

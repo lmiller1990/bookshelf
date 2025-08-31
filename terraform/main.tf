@@ -21,6 +21,13 @@ variable "environment" {
   default     = "UAT"
 }
 
+variable "google_books_api_key" {
+  description = "Google Books API key for book validation"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 locals {
   resource_prefix = "bookimg-${lower(var.environment)}"
   s3_bucket_name  = local.resource_prefix
@@ -523,8 +530,9 @@ resource "aws_lambda_function" "book_validator" {
 
   environment {
     variables = {
-      RESULTS_BUCKET_NAME = aws_s3_bucket.bookimg_results.bucket
-      SNS_TOPIC_ARN       = aws_sns_topic.results_notifications.arn
+      RESULTS_BUCKET_NAME    = aws_s3_bucket.bookimg_results.bucket
+      SNS_TOPIC_ARN          = aws_sns_topic.results_notifications.arn
+      GOOGLE_BOOKS_API_KEY   = var.google_books_api_key
     }
   }
 

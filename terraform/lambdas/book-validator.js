@@ -5,13 +5,16 @@ const { SNSClient, PublishCommand } = require("@aws-sdk/client-sns");
 const s3 = new S3Client({ region: "ap-southeast-2" });
 const sns = new SNSClient({ region: "ap-southeast-2" });
 
-// Simple Google Books API validation (you'd need to add API key)
+// Google Books API validation with API key
 async function validateWithGoogleBooks(title, author) {
   try {
     const query = encodeURIComponent(`"${title}" "${author}"`);
-    const response = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`
-    );
+    const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
+    const url = apiKey
+      ? `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1&key=${apiKey}`
+      : `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`;
+
+    const response = await fetch(url);
     const data = await response.json();
 
     if (data.items && data.items.length > 0) {
@@ -80,7 +83,9 @@ exports.handler = async (event) => {
       };
 
       console.log(
-        `Validation complete: ${finalResults.validatedCount}/${finalResults.totalCandidates} books validated`
+        `Validation complete: ${finalResults.validatedCount}/${
+          finalResults.totalCandidates
+        } books validated. Those are ${JSON.stringify(validatedBooks, null, 4)}`
       );
 
       // Store final results
@@ -105,6 +110,7 @@ exports.handler = async (event) => {
               status: "complete",
               validatedBooks: finalResults.validatedCount,
               totalCandidates: finalResults.totalCandidates,
+              books: validatedBooks,
               resultsLocation: `s3://${resultsBucket}/${jobId}/final-results.json`,
             },
             null,
