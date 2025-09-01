@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
   }
   
   backend "s3" {
@@ -407,29 +411,106 @@ resource "aws_iam_role_policy_attachment" "lambda_service_policy_attachment" {
   role       = aws_iam_role.lambda_execution_role.name
 }
 
-# Archive Lambda function source code
+# Archive Lambda function source code with automatic builds
+
+# Upload Handler
+data "archive_file" "upload_handler_src" {
+  type        = "zip"
+  source_dir  = "../packages/upload-handler/src"
+  output_path = "/tmp/upload_handler_src.zip"
+}
+
+resource "null_resource" "build_upload_handler" {
+  triggers = {
+    src_hash = data.archive_file.upload_handler_src.output_base64sha256
+  }
+  
+  provisioner "local-exec" {
+    command = "cd ../packages/upload-handler && npm run build"
+  }
+}
+
 data "archive_file" "upload_handler" {
   type        = "zip"
   source_dir  = "../packages/upload-handler/dist"
   output_path = "upload_handler.zip"
+  
+  depends_on = [null_resource.build_upload_handler]
+}
+
+# Textract Processor
+data "archive_file" "textract_processor_src" {
+  type        = "zip"
+  source_dir  = "../packages/textract-processor/src"
+  output_path = "/tmp/textract_processor_src.zip"
+}
+
+resource "null_resource" "build_textract_processor" {
+  triggers = {
+    src_hash = data.archive_file.textract_processor_src.output_base64sha256
+  }
+  
+  provisioner "local-exec" {
+    command = "cd ../packages/textract-processor && npm run build"
+  }
 }
 
 data "archive_file" "textract_processor" {
   type        = "zip"
   source_dir  = "../packages/textract-processor/dist"
   output_path = "textract_processor.zip"
+  
+  depends_on = [null_resource.build_textract_processor]
+}
+
+# Bedrock Processor
+data "archive_file" "bedrock_processor_src" {
+  type        = "zip"
+  source_dir  = "../packages/bedrock-processor/src"
+  output_path = "/tmp/bedrock_processor_src.zip"
+}
+
+resource "null_resource" "build_bedrock_processor" {
+  triggers = {
+    src_hash = data.archive_file.bedrock_processor_src.output_base64sha256
+  }
+  
+  provisioner "local-exec" {
+    command = "cd ../packages/bedrock-processor && npm run build"
+  }
 }
 
 data "archive_file" "bedrock_processor" {
   type        = "zip"
   source_dir  = "../packages/bedrock-processor/dist"
   output_path = "bedrock_processor.zip"
+  
+  depends_on = [null_resource.build_bedrock_processor]
+}
+
+# Book Validator
+data "archive_file" "book_validator_src" {
+  type        = "zip"
+  source_dir  = "../packages/book-validator/src"
+  output_path = "/tmp/book_validator_src.zip"
+}
+
+resource "null_resource" "build_book_validator" {
+  triggers = {
+    src_hash = data.archive_file.book_validator_src.output_base64sha256
+  }
+  
+  provisioner "local-exec" {
+    command = "cd ../packages/book-validator && npm run build"
+  }
 }
 
 data "archive_file" "book_validator" {
   type        = "zip"
   source_dir  = "../packages/book-validator/dist"
   output_path = "book_validator.zip"
+  
+  depends_on = [null_resource.build_book_validator]
 }
 
 data "archive_file" "web_lambda" {
@@ -438,16 +519,54 @@ data "archive_file" "web_lambda" {
   output_path = "web_lambda.zip"
 }
 
+# WebSocket Connection Manager
+data "archive_file" "websocket_connection_manager_src" {
+  type        = "zip"
+  source_dir  = "../packages/websocket-connection-manager/src"
+  output_path = "/tmp/websocket_connection_manager_src.zip"
+}
+
+resource "null_resource" "build_websocket_connection_manager" {
+  triggers = {
+    src_hash = data.archive_file.websocket_connection_manager_src.output_base64sha256
+  }
+  
+  provisioner "local-exec" {
+    command = "cd ../packages/websocket-connection-manager && npm run build"
+  }
+}
+
 data "archive_file" "websocket_connection_manager" {
   type        = "zip"
   source_dir  = "../packages/websocket-connection-manager/dist"
   output_path = "websocket_connection_manager.zip"
+  
+  depends_on = [null_resource.build_websocket_connection_manager]
+}
+
+# SNS Notification Handler
+data "archive_file" "sns_notification_handler_src" {
+  type        = "zip"
+  source_dir  = "../packages/sns-notification-handler/src"
+  output_path = "/tmp/sns_notification_handler_src.zip"
+}
+
+resource "null_resource" "build_sns_notification_handler" {
+  triggers = {
+    src_hash = data.archive_file.sns_notification_handler_src.output_base64sha256
+  }
+  
+  provisioner "local-exec" {
+    command = "cd ../packages/sns-notification-handler && npm run build"
+  }
 }
 
 data "archive_file" "sns_notification_handler" {
   type        = "zip"
   source_dir  = "../packages/sns-notification-handler/dist"
   output_path = "sns_notification_handler.zip"
+  
+  depends_on = [null_resource.build_sns_notification_handler]
 }
 
 # Lambda Functions
