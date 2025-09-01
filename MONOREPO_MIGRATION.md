@@ -148,7 +148,7 @@ AWS_PROFILE=bookimg-deployer aws lambda invoke \
 3. **upload-handler** (triggers pipeline)
 4. **websocket-connection-manager** (WebSocket features)
 5. **sns-notification-handler** (notifications)
-6. **web-interface** (UI - most complex due to dependencies)
+6. **web-interface** (UI - most complex due to dependencies) - do later, not right now
 
 ## 🔍 Lambda-Specific Considerations
 
@@ -159,7 +159,7 @@ AWS_PROFILE=bookimg-deployer aws lambda invoke \
 
 ### book-validator
 - HTTP client for external APIs (Google Books, Open Library)  
-- Consider adding `node-fetch` or using built-in `fetch`
+- Consider using built-in `fetch`
 - Rate limiting logic
 
 ### upload-handler
