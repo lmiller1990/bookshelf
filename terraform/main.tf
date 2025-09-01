@@ -416,7 +416,7 @@ data "archive_file" "upload_handler" {
 
 data "archive_file" "textract_processor" {
   type        = "zip"
-  source_file = "lambdas/textract-processor.js"
+  source_dir  = "../packages/textract-processor/dist"
   output_path = "textract_processor.zip"
 }
 
@@ -478,7 +478,7 @@ resource "aws_lambda_function" "textract_processor" {
   source_code_hash = data.archive_file.textract_processor.output_base64sha256
   function_name    = "${local.resource_prefix}-textract-processor"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "textract-processor.handler"
+  handler         = "index.handler"
   runtime         = "nodejs20.x"
   timeout         = 300  # 5 minutes for Textract
 

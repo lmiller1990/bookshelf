@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"bucket\":\"bookimg-uat\",\"key\":\"test-image.jpg\",\"jobId\":\"test-123\",\"timestamp\":\"2025-09-01T21:15:00.000Z\"}"
+    }
+  ]
+}

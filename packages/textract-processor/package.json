@@ -1,0 +1,23 @@
+{
+  "name": "@bookimg/textract-processor",
+  "version": "1.0.0",
+  "description": "AWS Lambda for extracting text from images using Textract",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/index.js --external:@aws-sdk/* && echo '{\"type\":\"module\"}' > dist/package.json",
+    "clean": "rm -rf dist",
+    "package": "npm run build && cd dist && zip -r ../textract-processor.zip ."
+  },
+  "dependencies": {
+    "@bookimg/shared": "1.0.0",
+    "@aws-sdk/client-textract": "^3.879.0",
+    "@aws-sdk/client-s3": "^3.879.0",
+    "@aws-sdk/client-sqs": "^3.879.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.0",
+    "typescript": "^5.9.2",
+    "@types/node": "^24.3.0"
+  }
+}
