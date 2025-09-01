@@ -10,7 +10,7 @@
     "package": "npm run build && cd dist && zip -r ../upload-handler.zip ."
   },
   "dependencies": {
-    "@bookimg/shared": "1.0.0",
+    "@bookimg/shared": "workspace:*",
     "@aws-sdk/client-sqs": "^3.879.0"
   },
   "devDependencies": {

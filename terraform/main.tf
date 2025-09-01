@@ -513,10 +513,29 @@ data "archive_file" "book_validator" {
   depends_on = [null_resource.build_book_validator]
 }
 
+# Web Lambda (lambda-web-dist)
+data "archive_file" "web_lambda_src" {
+  type        = "zip"
+  source_dir  = "../packages/lambda-web-dist"
+  output_path = "/tmp/web_lambda_src.zip"
+}
+
+resource "null_resource" "build_web_lambda" {
+  triggers = {
+    src_hash = data.archive_file.web_lambda_src.output_base64sha256
+  }
+  
+  provisioner "local-exec" {
+    command = "cd .. && pnpm --filter=lambda-web-dist build && rm -rf /tmp/lambda-web-deploy && pnpm --filter=lambda-web-dist deploy /tmp/lambda-web-deploy"
+  }
+}
+
 data "archive_file" "web_lambda" {
   type        = "zip"
-  source_dir  = "../packages/lambda-web-dist/dist"
+  source_dir  = "/tmp/lambda-web-deploy"
   output_path = "web_lambda.zip"
+  
+  depends_on = [null_resource.build_web_lambda]
 }
 
 # WebSocket Connection Manager

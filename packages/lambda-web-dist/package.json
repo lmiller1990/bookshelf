@@ -3,12 +3,9 @@
   "version": "1.0.0",
   "description": "Web interface Lambda function for BookImg",
   "type": "module",
-  "main": "dist/lambda-web.js",
+  "main": "src/lambda-web.js",
   "scripts": {
-    "build": "tsc",
-    "build:old": "node esbuild.config.js && cp -r views dist/ && echo '{\"type\":\"module\"}' > dist/package.json",
-    "clean": "rm -rf dist",
-    "package": "npm run build && cd dist && zip -r ../lambda-web.zip ."
+    "build": "tsc"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.879.0",

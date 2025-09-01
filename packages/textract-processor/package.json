@@ -10,7 +10,7 @@
     "package": "npm run build && cd dist && zip -r ../textract-processor.zip ."
   },
   "dependencies": {
-    "@bookimg/shared": "1.0.0",
+    "@bookimg/shared": "workspace:*",
     "@aws-sdk/client-textract": "^3.879.0",
     "@aws-sdk/client-s3": "^3.879.0",
     "@aws-sdk/client-sqs": "^3.879.0"
