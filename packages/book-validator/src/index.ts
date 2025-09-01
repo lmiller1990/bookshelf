@@ -1,20 +1,23 @@
-import { SQSEvent } from 'aws-lambda';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
-import { PublishCommand } from '@aws-sdk/client-sns';
-import { 
-  s3Client, 
-  snsClient, 
-  getResultsBucket, 
+import { SQSEvent } from "aws-lambda";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PublishCommand } from "@aws-sdk/client-sns";
+import {
+  s3Client,
+  snsClient,
+  getResultsBucket,
   getSNSTopicArn,
-  BedrockMessage,
-  BookCandidate,
-  ValidationResult,
-  ValidatedBook,
-  FinalResults 
-} from '@bookimg/shared';
+  type BedrockMessage,
+  type BookCandidate,
+  type ValidationResult,
+  type ValidatedBook,
+  type FinalResults,
+} from "@bookimg/shared";
 
 // Google Books API validation with API key
-async function validateWithGoogleBooks(title: string, author: string): Promise<ValidationResult> {
+async function validateWithGoogleBooks(
+  title: string,
+  author: string
+): Promise<ValidationResult> {
   try {
     const query = encodeURIComponent(`"${title}" "${author}"`);
     const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
@@ -90,7 +93,8 @@ export const handler = async (event: SQSEvent) => {
         jobId: jobId,
         timestamp: new Date().toISOString(),
         totalCandidates: candidates.length,
-        validatedCount: validatedBooks.filter((b) => b.status === "validated").length,
+        validatedCount: validatedBooks.filter((b) => b.status === "validated")
+          .length,
         books: validatedBooks,
       };
 
