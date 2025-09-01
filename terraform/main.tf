@@ -446,7 +446,7 @@ data "archive_file" "websocket_connection_manager" {
 
 data "archive_file" "sns_notification_handler" {
   type        = "zip"
-  source_file = "lambdas/sns-notification-handler.js"
+  source_dir  = "../packages/sns-notification-handler/dist"
   output_path = "sns_notification_handler.zip"
 }
 
@@ -586,7 +586,7 @@ resource "aws_lambda_function" "sns_notification_handler" {
   source_code_hash = data.archive_file.sns_notification_handler.output_base64sha256
   function_name    = "${local.resource_prefix}-sns-notification-handler"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "sns-notification-handler.handler"
+  handler         = "index.handler"
   runtime         = "nodejs20.x"
   timeout         = 30
 

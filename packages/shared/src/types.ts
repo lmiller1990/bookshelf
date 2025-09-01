@@ -130,3 +130,38 @@ export interface WebSocketSubscribeMessage {
   action: 'subscribe';
   jobId: string;
 }
+
+// SNS Event types
+export interface SNSMessage {
+  Type: string;
+  MessageId: string;
+  TopicArn: string;
+  Subject: string;
+  Message: string;
+  Timestamp: string;
+  SignatureVersion: string;
+  Signature: string;
+  SigningCertURL: string;
+  UnsubscribeURL: string;
+}
+
+export interface SNSRecord {
+  EventSource: string;
+  EventVersion: string;
+  EventSubscriptionArn: string;
+  Sns: SNSMessage;
+}
+
+export interface SNSEvent {
+  Records: SNSRecord[];
+}
+
+// SNS Message payload for processing completion
+export interface ProcessingCompleteMessage {
+  jobId: string;
+  status: string;
+  books: ValidatedBook[];
+  validatedBooks: number;
+  totalCandidates: number;
+  resultsLocation: string;
+}
