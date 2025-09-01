@@ -27,3 +27,4 @@ export const getResultsBucket = () => getEnvVar('RESULTS_BUCKET_NAME');
 export const getBedrockQueueUrl = () => getEnvVar('BEDROCK_QUEUE_URL');
 export const getValidationQueueUrl = () => getEnvVar('VALIDATION_QUEUE_URL');
 export const getSNSTopicArn = () => getEnvVar('SNS_TOPIC_ARN');
+export const getTextractQueueUrl = () => getEnvVar('TEXTRACT_QUEUE_URL');

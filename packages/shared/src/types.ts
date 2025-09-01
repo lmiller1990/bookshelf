@@ -46,3 +46,42 @@ export interface FinalResults {
   validatedCount: number;
   books: ValidatedBook[];
 }
+
+// S3 Event types for upload handler
+export interface S3ObjectInfo {
+  key: string;
+  size: number;
+  eTag: string;
+  sequencer: string;
+}
+
+export interface S3BucketInfo {
+  name: string;
+  ownerIdentity: {
+    principalId: string;
+  };
+  arn: string;
+}
+
+export interface S3EventRecord {
+  eventVersion: string;
+  eventSource: string;
+  eventTime: string;
+  eventName: string;
+  userIdentity: {
+    principalId: string;
+  };
+  requestParameters: {
+    sourceIPAddress: string;
+  };
+  responseElements: {
+    'x-amz-request-id': string;
+    'x-amz-id-2': string;
+  };
+  s3: {
+    s3SchemaVersion: string;
+    configurationId: string;
+    bucket: S3BucketInfo;
+    object: S3ObjectInfo;
+  };
+}

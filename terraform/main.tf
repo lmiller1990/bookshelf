@@ -410,7 +410,7 @@ resource "aws_iam_role_policy_attachment" "lambda_service_policy_attachment" {
 # Archive Lambda function source code
 data "archive_file" "upload_handler" {
   type        = "zip"
-  source_file = "lambdas/upload-handler.js"
+  source_dir  = "../packages/upload-handler/dist"
   output_path = "upload_handler.zip"
 }
 
@@ -456,7 +456,7 @@ resource "aws_lambda_function" "upload_handler" {
   source_code_hash = data.archive_file.upload_handler.output_base64sha256
   function_name    = "${local.resource_prefix}-upload-handler"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "upload-handler.handler"
+  handler         = "index.handler"
   runtime         = "nodejs20.x"
   timeout         = 30
 
