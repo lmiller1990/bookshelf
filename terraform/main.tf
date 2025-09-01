@@ -428,7 +428,7 @@ data "archive_file" "bedrock_processor" {
 
 data "archive_file" "book_validator" {
   type        = "zip"
-  source_file = "lambdas/book-validator.js"
+  source_dir  = "../packages/book-validator/dist"
   output_path = "book_validator.zip"
 }
 
@@ -524,7 +524,7 @@ resource "aws_lambda_function" "book_validator" {
   source_code_hash = data.archive_file.book_validator.output_base64sha256
   function_name    = "${local.resource_prefix}-book-validator"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "book-validator.handler"
+  handler         = "index.handler"
   runtime         = "nodejs20.x"
   timeout         = 120  # 2 minutes for API calls
 

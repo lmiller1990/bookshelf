@@ -1,0 +1,7 @@
+{
+  "Records": [
+    {
+      "body": "{\"jobId\":\"test-123\",\"bucket\":\"test\",\"key\":\"test.jpg\",\"timestamp\":\"2025-01-01T00:00:00Z\",\"extractedText\":\"Harry Potter J.K. Rowling PHILOSOPHERS STONE\"}"
+    }
+  ]
+}
