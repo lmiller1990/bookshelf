@@ -1,0 +1,25 @@
+{
+  "name": "@bookimg/lambda-web-dist",
+  "version": "1.0.0",
+  "description": "Web interface Lambda function for BookImg",
+  "type": "module",
+  "main": "dist/lambda-web.js",
+  "scripts": {
+    "build": "tsc",
+    "build:old": "node esbuild.config.js && cp -r views dist/ && echo '{\"type\":\"module\"}' > dist/package.json",
+    "clean": "rm -rf dist",
+    "package": "npm run build && cd dist && zip -r ../lambda-web.zip ."
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.879.0",
+    "@aws-sdk/s3-request-presigner": "^3.879.0",
+    "@fastify/aws-lambda": "^6.1.1",
+    "@fastify/multipart": "^9.0.0",
+    "fastify": "^5.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2",
+    "esbuild": "^0.23.0"
+  }
+}

@@ -515,7 +515,7 @@ data "archive_file" "book_validator" {
 
 data "archive_file" "web_lambda" {
   type        = "zip"
-  source_dir  = "lambda-web-dist"
+  source_dir  = "../packages/lambda-web-dist/dist"
   output_path = "web_lambda.zip"
 }
 

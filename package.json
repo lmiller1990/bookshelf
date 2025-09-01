@@ -10,7 +10,9 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "build:textract": "npm run build -w packages/textract-processor",
+    "build:lambda-web": "npm run build -w packages/lambda-web-dist",
     "deploy:textract": "npm run build:textract && terraform apply -target=aws_lambda_function.textract_processor",
+    "deploy:lambda-web": "npm run build:lambda-web && terraform apply -target=aws_lambda_function.web_api",
     "test": "npm test --workspaces",
     "clean": "rm -rf packages/*/dist && rm -rf dist",
     "dev": "npm run build && node packages/cli/dist/index.js"
@@ -32,10 +34,7 @@
     "@aws-sdk/client-dynamodb": "^3.879.0",
     "@aws-sdk/client-apigatewaymanagementapi": "^3.879.0",
     "@aws-sdk/s3-request-presigner": "^3.879.0",
-    "@fastify/aws-lambda": "^6.1.1",
-    "@fastify/view": "^11.1.1",
     "@types/commander": "^2.12.5",
-    "commander": "^14.0.0",
-    "fastify": "^5.5.0"
+    "commander": "^14.0.0"
   }
 }
