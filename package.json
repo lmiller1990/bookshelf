@@ -1,26 +1,41 @@
 {
-  "type": "module",
   "name": "bookimg",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "AI Book Recognition Pipeline - Monorepo",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "npm run build --workspaces",
+    "build:textract": "npm run build -w packages/textract-processor",
+    "deploy:textract": "npm run build:textract && terraform apply -target=aws_lambda_function.textract_processor",
+    "test": "npm test --workspaces",
+    "clean": "rm -rf packages/*/dist && rm -rf dist",
+    "dev": "npm run build && node packages/cli/dist/index.js"
   },
-  "keywords": [],
+  "keywords": ["aws", "textract", "bedrock", "lambda", "monorepo"],
   "author": "",
   "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2",
+    "esbuild": "^0.23.0"
+  },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.879.0",
     "@aws-sdk/client-s3": "^3.879.0",
     "@aws-sdk/client-sns": "^3.879.0",
     "@aws-sdk/client-textract": "^3.879.0",
+    "@aws-sdk/client-sqs": "^3.879.0",
+    "@aws-sdk/client-dynamodb": "^3.879.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.879.0",
     "@aws-sdk/s3-request-presigner": "^3.879.0",
     "@fastify/aws-lambda": "^6.1.1",
+    "@fastify/view": "^11.1.1",
     "@types/commander": "^2.12.5",
-    "@types/node": "^24.3.0",
     "commander": "^14.0.0",
-    "fastify": "^5.5.0",
-    "typescript": "^5.9.2"
+    "fastify": "^5.5.0"
   }
 }
