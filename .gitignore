@@ -18,3 +18,4 @@ terraform.tfvars
 *.zip
 packages/*/dist/
 dist/
+terraform/.build/
