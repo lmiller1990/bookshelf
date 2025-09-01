@@ -85,3 +85,48 @@ export interface S3EventRecord {
     object: S3ObjectInfo;
   };
 }
+
+// WebSocket event types
+export interface WebSocketRequestContext {
+  accountId: string;
+  apiId: string;
+  connectionId: string;
+  domainName: string;
+  domainPrefix: string;
+  eventType: 'CONNECT' | 'DISCONNECT' | 'MESSAGE';
+  extendedRequestId: string;
+  protocol: string;
+  httpMethod: string;
+  identity: {
+    accessKey: null;
+    accountId: null;
+    caller: null;
+    cognitoAuthenticationProvider: null;
+    cognitoAuthenticationType: null;
+    cognitoIdentityId: null;
+    cognitoIdentityPoolId: null;
+    principalOrgId: null;
+    sourceIp: string;
+    user: null;
+    userAgent: string;
+    userArn: null;
+  };
+  messageDirection: string;
+  messageId: string;
+  requestId: string;
+  requestTime: string;
+  requestTimeEpoch: number;
+  routeKey: string;
+  stage: string;
+}
+
+export interface WebSocketEvent {
+  requestContext: WebSocketRequestContext;
+  body?: string;
+  isBase64Encoded: boolean;
+}
+
+export interface WebSocketSubscribeMessage {
+  action: 'subscribe';
+  jobId: string;
+}

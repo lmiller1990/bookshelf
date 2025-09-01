@@ -440,7 +440,7 @@ data "archive_file" "web_lambda" {
 
 data "archive_file" "websocket_connection_manager" {
   type        = "zip"
-  source_file = "lambdas/websocket-connection-manager.js"
+  source_dir  = "../packages/websocket-connection-manager/dist"
   output_path = "websocket_connection_manager.zip"
 }
 
@@ -564,7 +564,7 @@ resource "aws_lambda_function" "websocket_connection_manager" {
   source_code_hash = data.archive_file.websocket_connection_manager.output_base64sha256
   function_name    = "${local.resource_prefix}-websocket-connection-manager"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "websocket-connection-manager.handler"
+  handler         = "index.handler"
   runtime         = "nodejs20.x"
   timeout         = 30
 

@@ -14,7 +14,9 @@
     "@aws-sdk/client-sqs": "^3.879.0",
     "@aws-sdk/client-textract": "^3.879.0",
     "@aws-sdk/client-bedrock-runtime": "^3.879.0",
-    "@aws-sdk/client-sns": "^3.879.0"
+    "@aws-sdk/client-sns": "^3.879.0",
+    "@aws-sdk/client-dynamodb": "^3.879.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.879.0"
   },
   "devDependencies": {
     "typescript": "^5.9.2",
