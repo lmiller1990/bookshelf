@@ -422,7 +422,7 @@ data "archive_file" "textract_processor" {
 
 data "archive_file" "bedrock_processor" {
   type        = "zip"
-  source_file = "lambdas/bedrock-processor.js"
+  source_dir  = "../packages/bedrock-processor/dist"
   output_path = "bedrock_processor.zip"
 }
 
@@ -501,7 +501,7 @@ resource "aws_lambda_function" "bedrock_processor" {
   source_code_hash = data.archive_file.bedrock_processor.output_base64sha256
   function_name    = "${local.resource_prefix}-bedrock-processor"
   role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "bedrock-processor.handler"
+  handler         = "index.handler"
   runtime         = "nodejs20.x"
   timeout         = 180  # 3 minutes for LLM
 
