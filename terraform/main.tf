@@ -35,6 +35,7 @@ variable "google_books_api_key" {
 locals {
   resource_prefix = "bookimg-${lower(var.environment)}"
   s3_bucket_name  = local.resource_prefix
+  repo_root       = "${path.module}/.."
 }
 
 # Data sources
@@ -519,10 +520,10 @@ locals {
   deploy_dir     = "${local.build_root}/deploy"
   # Broaden triggers: lockfile, pkg, and source tree
   build_trigger  = sha256(join(",", [
-    filesha256("${path.root}/pnpm-lock.yaml"),
-    filesha256("${path.root}/packages/lambda-web-dist/package.json"),
+    filesha256("${local.repo_root}/pnpm-lock.yaml"),
+    filesha256("${local.repo_root}/packages/lambda-web-dist/package.json"),
     # crude: hash a list of source files; adjust glob as needed
-    sha256(join(",", [for f in fileset("${path.root}/packages/lambda-web-dist", "**/*.{ts,tsx,js,jsx,json}") : filesha256("${path.root}/packages/lambda-web-dist/${f}")]))
+    sha256(join(",", [for f in fileset("${local.repo_root}/packages/lambda-web-dist", "**/*.{ts,tsx,js,jsx,json}") : filesha256("${local.repo_root}/packages/lambda-web-dist/${f}")]))
   ]))
 }
 
@@ -545,11 +546,11 @@ resource "null_resource" "build_web_lambda" {
     command = <<-EOT
       set -euo pipefail
       echo "Building lambda-web-dist..."
-      cd ${path.root}
+      cd ${local.repo_root}
       pnpm --filter=lambda-web-dist build
       echo "Deploying to ${local.deploy_dir}..."
       rm -rf ${local.deploy_dir}
-      pnpm --filter=lambda-web-dist deploy ${local.deploy_dir}
+      pnpm --filter=lambda-web-dist deploy --prod ${local.deploy_dir}
       echo "Web lambda build complete"
     EOT
   }
@@ -1022,4 +1023,17 @@ output "access_key_id" {
 output "secret_access_key" {
   value     = aws_iam_access_key.bookimg_access_key.secret
   sensitive = true
+}
+
+# Debug outputs for web lambda build paths
+output "debug_repo_root" {
+  value = local.repo_root
+}
+
+output "debug_build_root" {
+  value = "${path.module}/.build/web"
+}
+
+output "debug_deploy_dir" {
+  value = local.deploy_dir
 }
