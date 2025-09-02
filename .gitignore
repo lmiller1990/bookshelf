@@ -1,4 +1,5 @@
 node_modules
+.build
 *.HEIC
 .terraform
 *.jpg
@@ -18,3 +19,4 @@ terraform.tfvars
 *.zip
 packages/*/dist/
 dist/
+terraform/.build/

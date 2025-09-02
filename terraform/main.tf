@@ -35,6 +35,7 @@ variable "google_books_api_key" {
 locals {
   resource_prefix = "bookimg-${lower(var.environment)}"
   s3_bucket_name  = local.resource_prefix
+  repo_root       = "${path.module}/.."
 }
 
 # Data sources
@@ -514,28 +515,55 @@ data "archive_file" "book_validator" {
 }
 
 # Web Lambda (lambda-web-dist)
-data "archive_file" "web_lambda_src" {
-  type        = "zip"
-  source_dir  = "../packages/lambda-web-dist"
-  output_path = "/tmp/web_lambda_src.zip"
+locals {
+  build_root     = "${path.module}/.build/web"
+  deploy_dir     = "${local.build_root}/deploy"
+  # Broaden triggers: lockfile, pkg, and source tree
+  build_trigger  = sha256(join(",", [
+    filesha256("${local.repo_root}/pnpm-lock.yaml"),
+    filesha256("${local.repo_root}/packages/lambda-web-dist/package.json"),
+    # crude: hash a list of source files; adjust glob as needed
+    sha256(join(",", [for f in fileset("${local.repo_root}/packages/lambda-web-dist", "**/*.{ts,tsx,js,jsx,json}") : filesha256("${local.repo_root}/packages/lambda-web-dist/${f}")]))
+  ]))
+}
+
+# Ensure directories exist at plan time to avoid archive_file flakiness
+resource "null_resource" "prepare_dirs" {
+  provisioner "local-exec" {
+    command = "mkdir -p ${local.deploy_dir}"
+  }
+  triggers = {
+    always = timestamp()
+  }
 }
 
 resource "null_resource" "build_web_lambda" {
   triggers = {
-    src_hash = data.archive_file.web_lambda_src.output_base64sha256
+    build_trigger = local.build_trigger
   }
-  
+
   provisioner "local-exec" {
-    command = "cd .. && pnpm --filter=lambda-web-dist build && rm -rf /tmp/lambda-web-deploy && pnpm --filter=lambda-web-dist deploy /tmp/lambda-web-deploy"
+    command = <<-EOT
+      set -euo pipefail
+      echo "Building lambda-web-dist..."
+      cd ${local.repo_root}
+      pnpm --filter=lambda-web-dist build
+      echo "Deploying to ${local.deploy_dir}..."
+      rm -rf ${local.deploy_dir}
+      pnpm --filter=lambda-web-dist deploy --prod ${local.deploy_dir}
+      echo "Web lambda build complete"
+    EOT
   }
+
+  depends_on = [null_resource.prepare_dirs]
 }
 
 data "archive_file" "web_lambda" {
   type        = "zip"
-  source_dir  = "/tmp/lambda-web-deploy"
-  output_path = "web_lambda.zip"
-  
-  depends_on = [null_resource.build_web_lambda]
+  source_dir  = local.deploy_dir
+  output_path = "${path.module}/web_lambda.zip"
+
+  depends_on  = [null_resource.build_web_lambda]
 }
 
 # WebSocket Connection Manager
@@ -995,4 +1023,17 @@ output "access_key_id" {
 output "secret_access_key" {
   value     = aws_iam_access_key.bookimg_access_key.secret
   sensitive = true
+}
+
+# Debug outputs for web lambda build paths
+output "debug_repo_root" {
+  value = local.repo_root
+}
+
+output "debug_build_root" {
+  value = "${path.module}/.build/web"
+}
+
+output "debug_deploy_dir" {
+  value = local.deploy_dir
 }
