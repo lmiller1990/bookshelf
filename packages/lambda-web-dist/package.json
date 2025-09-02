@@ -8,9 +8,9 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@fastify/aws-lambda": "^6.1.1",
-    "@fastify/multipart": "^9.0.0",
-    "fastify": "^5.5.0"
+    "@fastify/aws-lambda": "6.1.1",
+    "@fastify/multipart": "9.0.3",
+    "fastify": "5.5.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

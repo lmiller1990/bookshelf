@@ -76,7 +76,6 @@ app.get(
   }
 );
 
-// Health check
 app.get("/health", async (request: FastifyRequest, reply: FastifyReply) => {
   return { status: "ok", timestamp: new Date().toISOString() };
 });

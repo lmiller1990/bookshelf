@@ -31,7 +31,7 @@ resource "null_resource" "build_web_lambda" {
     mkdir -p "$DEPLOY_DIR"
     rm -rf "$DEPLOY_DIR"/*
 
-    pnpm --filter="$PKG" deploy --prod "$DEPLOY_DIR"
+    pnpm  --node-linker=hoisted --filter="$PKG" deploy --prod "$DEPLOY_DIR"
     test "$(ls -A "$DEPLOY_DIR")"
     echo "$FUNC build complete"
   EOT
@@ -53,7 +53,7 @@ resource "aws_lambda_function" "web_lambda" {
   function_name    = var.function_name
   role             = var.execution_role_arn
   handler          = var.handler
-  runtime          = "nodejs20.x"
+  runtime          = "nodejs22.x"
   timeout          = var.timeout
 
   dynamic "environment" {

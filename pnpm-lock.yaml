@@ -3,6 +3,7 @@ lockfileVersion: '9.0'
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
+  injectWorkspacePackages: true
 
 importers:
 
@@ -96,13 +97,13 @@ importers:
   packages/lambda-web-dist:
     dependencies:
       '@fastify/aws-lambda':
-        specifier: ^6.1.1
+        specifier: 6.1.1
         version: 6.1.1
       '@fastify/multipart':
-        specifier: ^9.0.0
+        specifier: 9.0.3
         version: 9.0.3
       fastify:
-        specifier: ^5.5.0
+        specifier: 5.5.0
         version: 5.5.0
     devDependencies:
       '@aws-sdk/client-s3':
