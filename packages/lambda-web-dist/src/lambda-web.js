@@ -60,3 +60,4 @@ app.get("/health", async (request, reply) => {
 });
 // Export the handler for AWS Lambda
 export const handler = awsLambdaFastify(app);
+//# sourceMappingURL=lambda-web.js.map

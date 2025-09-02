@@ -20,3 +20,7 @@ terraform.tfvars
 packages/*/dist/
 dist/
 terraform/.build/
+*.js
+*.js.map
+*.d.ts
+dist

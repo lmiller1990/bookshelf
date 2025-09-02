@@ -1,8 +1,50 @@
 locals {
   resource_prefix = "bookimg-${lower(var.environment)}"
   s3_bucket_name  = local.resource_prefix
-  repo_root       = "${path.module}/../.."
-  deploy_dir     = "${local.repo_root}/.deploy/${var.package_name}"
+  # absolute path to this module
+  module_dir = abspath(path.module)
+  deploy_dir = "${local.module_dir}/deploy/${var.package_name}"
+  zip_path   = "${local.module_dir}/build/${var.package_name}.zip"
+}
+
+resource "null_resource" "build_web_lambda" {
+  triggers = {
+    package_name  = var.package_name
+    function_name = var.function_name
+    always_run    = timestamp()
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-lc"]
+    command     = <<-EOT
+    set -euo pipefail
+    MODULE_DIR="${local.module_dir}"
+    DEPLOY_DIR="${local.deploy_dir}"
+    PKG="${var.package_name}"
+    FUNC="${var.function_name}"
+
+    echo "Building ${var.function_name}..."
+    cd "${local.module_dir}/.."
+    pnpm --filter="${var.package_name}" build
+
+    echo "Deploying to $DEPLOY_DIR..."
+    mkdir -p "$DEPLOY_DIR"
+    rm -rf "$DEPLOY_DIR"/*
+
+    pnpm --filter="$PKG" deploy --prod "$DEPLOY_DIR"
+    test "$(ls -A "$DEPLOY_DIR")"
+    echo "$FUNC build complete"
+  EOT
+  }
+}
+
+data "archive_file" "web_lambda" {
+  type       = "zip"
+  source_dir = local.deploy_dir
+  # write the zip OUTSIDE the source_dir to avoid self-inclusion and empties
+  output_path = local.zip_path
+
+  depends_on = [null_resource.build_web_lambda]
 }
 
 resource "aws_lambda_function" "web_lambda" {
@@ -16,33 +58,8 @@ resource "aws_lambda_function" "web_lambda" {
 
   dynamic "environment" {
     for_each = length(var.environment_variables) > 0 ? [1] : []
-    content {
-      variables = var.environment_variables
-    }
+    content { variables = var.environment_variables }
   }
 
   tags = var.tags
-}
-
-data "archive_file" "web_lambda" {
-  type        = "zip"
-  source_dir  = local.deploy_dir
-  output_path = "${path.module}/web_lambda.zip"
-
-  depends_on  = [null_resource.build_web_lambda]
-}
-
-resource "null_resource" "build_web_lambda" {
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -euo pipefail
-      echo "Building ${var.function_name}..."
-      cd ${local.repo_root}
-      pnpm --filter=${var.package_name} build
-      echo "Deploying to ${local.deploy_dir}..."
-      rm -rf ${local.deploy_dir}
-      pnpm --filter=${var.package_name} deploy --prod ${local.deploy_dir}
-      echo "${var.function_name} build complete"
-    EOT
-  }
 }

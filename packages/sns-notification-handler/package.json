@@ -5,12 +5,12 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/index.js --external:@aws-sdk/* --external:aws-lambda && echo '{\"type\":\"module\"}' > dist/package.json",
+    "build": "tsc",
     "clean": "rm -rf dist",
     "package": "npm run build && cd dist && zip -r ../sns-notification-handler.zip ."
   },
   "dependencies": {
-    "@bookimg/shared": "workspace:*",
+    "@packages/shared": "workspace:*",
     "@aws-sdk/client-dynamodb": "^3.879.0",
     "@aws-sdk/client-apigatewaymanagementapi": "^3.879.0"
   },

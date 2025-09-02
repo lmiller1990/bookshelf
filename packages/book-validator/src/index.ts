@@ -1,4 +1,4 @@
-import { SQSEvent } from "aws-lambda";
+import type { SQSEvent } from "aws-lambda";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { PublishCommand } from "@aws-sdk/client-sns";
 import {
@@ -11,7 +11,7 @@ import {
   type ValidationResult,
   type ValidatedBook,
   type FinalResults,
-} from "@bookimg/shared";
+} from "@packages/shared";
 
 // Google Books API validation with API key
 async function validateWithGoogleBooks(
@@ -26,7 +26,7 @@ async function validateWithGoogleBooks(
       : `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`;
 
     const response = await fetch(url);
-    const data = await response.json();
+    const data = (await response.json()) as any; // TODO type
 
     if (data.items && data.items.length > 0) {
       const book = data.items[0].volumeInfo;

@@ -60,7 +60,7 @@ importers:
       '@aws-sdk/client-sqs':
         specifier: ^3.879.0
         version: 3.879.0
-      '@bookimg/shared':
+      '@packages/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -85,7 +85,7 @@ importers:
       '@aws-sdk/client-sns':
         specifier: ^3.879.0
         version: 3.879.0
-      '@bookimg/shared':
+      '@packages/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -169,7 +169,7 @@ importers:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.879.0
         version: 3.879.0
-      '@bookimg/shared':
+      '@packages/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -197,7 +197,7 @@ importers:
       '@aws-sdk/client-textract':
         specifier: ^3.879.0
         version: 3.879.0
-      '@bookimg/shared':
+      '@packages/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -218,7 +218,7 @@ importers:
       '@aws-sdk/client-sqs':
         specifier: ^3.879.0
         version: 3.879.0
-      '@bookimg/shared':
+      '@packages/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -243,7 +243,7 @@ importers:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.879.0
         version: 3.879.0
-      '@bookimg/shared':
+      '@packages/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:

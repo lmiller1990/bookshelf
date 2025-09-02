@@ -1,10 +1,10 @@
-import { S3Event } from "aws-lambda";
+import type { S3Event } from "aws-lambda";
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
 import {
   sqsClient,
   getTextractQueueUrl,
   type ProcessingMessage,
-} from "@bookimg/shared";
+} from "@packages/shared";
 
 export const handler = async (event: S3Event) => {
   console.log("Upload Handler triggered:", JSON.stringify(event, null, 2));
@@ -24,6 +24,9 @@ export const handler = async (event: S3Event) => {
       // Key format: "originalName-timestamp/originalName"
       const keyParts = key.split("/");
       const sessionDir = keyParts[0]; // e.g., "bookshelf-1693234567890"
+      if (!sessionDir) {
+        throw new Error(`Exepcted keyParts not to be null. Got ${keyParts}`);
+      }
       const jobId = sessionDir; // Use the full session directory as jobId
 
       const message: ProcessingMessage = {

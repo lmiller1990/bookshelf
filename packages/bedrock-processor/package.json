@@ -3,14 +3,11 @@
   "version": "1.0.0",
   "description": "AWS Lambda for processing OCR text with Bedrock LLM",
   "type": "module",
-  "main": "dist/index.js",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/index.js --external:@aws-sdk/* --external:aws-lambda && echo '{\"type\":\"module\"}' > dist/package.json",
-    "clean": "rm -rf dist",
-    "package": "npm run build && cd dist && zip -r ../bedrock-processor.zip ."
+    "build": "tsc"
   },
   "dependencies": {
-    "@bookimg/shared": "workspace:*",
+    "@packages/shared": "workspace:*",
     "@aws-sdk/client-bedrock-runtime": "^3.879.0",
     "@aws-sdk/client-s3": "^3.879.0",
     "@aws-sdk/client-sqs": "^3.879.0"

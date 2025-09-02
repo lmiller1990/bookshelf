@@ -4,7 +4,7 @@ import {
   getDynamoDBTableName,
   type WebSocketEvent,
   type WebSocketSubscribeMessage,
-} from "@bookimg/shared";
+} from "@packages/shared";
 
 export const handler = async (event: WebSocketEvent) => {
   console.log(

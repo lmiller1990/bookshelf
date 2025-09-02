@@ -7,7 +7,7 @@ import {
   getWebSocketEndpoint,
   type SNSEvent,
   type ProcessingCompleteMessage,
-} from "@bookimg/shared";
+} from "@packages/shared";
 
 export const handler = async (event: SNSEvent) => {
   console.log(
@@ -42,7 +42,14 @@ export const handler = async (event: SNSEvent) => {
         continue;
       }
 
-      const connectionId = connectionResult.Item.connectionId.S!;
+      const connectionId = connectionResult?.Item?.connectionId?.S;
+      if (!connectionId) {
+        throw new Error(
+          `Expected to find connectionId in connectionResult but got ${JSON.stringify(
+            connectionResult
+          )}`
+        );
+      }
       console.log(`Found connection ${connectionId} for job ${jobId}`);
 
       // Create API Gateway Management client with the WebSocket endpoint
