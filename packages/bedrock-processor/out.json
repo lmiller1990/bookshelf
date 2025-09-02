@@ -1,0 +1,58 @@
+{
+  "candidates": [
+    {
+      "title": "FOLLOW YOUR GUT",
+      "author": "Barr, Crocetti, Wild, Stinson, Hutchings",
+      "subtitle": null,
+      "confidence": 0.9
+    },
+    {
+      "title": "The truth, the lies and the unbelievable story of the original superfood",
+      "author": "Matthew Evans",
+      "subtitle": null,
+      "confidence": 0.9
+    },
+    {
+      "title": "THE BITCOIN STANDARD",
+      "author": "AMMOUS",
+      "subtitle": null,
+      "confidence": 0.9
+    },
+    {
+      "title": "50 mathematical ideas you really need to know",
+      "author": "Tony Crilly",
+      "subtitle": null,
+      "confidence": 0.9
+    },
+    {
+      "title": "DANIEL C. DENNETT FROM BACTERIA TO BACH AND BACK",
+      "author": null,
+      "subtitle": null,
+      "confidence": 0.7
+    },
+    {
+      "title": "THE GENETIC WHY DNA MATTERS",
+      "author": "HARDEN",
+      "subtitle": "LOTTERY FOR SOCIAL EQUALITY",
+      "confidence": 0.8
+    },
+    {
+      "title": "Rebel Cell Cancer, Evolution and the Science of Life",
+      "author": "ARNEY",
+      "subtitle": null,
+      "confidence": 0.9
+    },
+    {
+      "title": "UNWELL",
+      "author": "McRAE",
+      "subtitle": null,
+      "confidence": 0.7
+    },
+    {
+      "title": "HOW TO SPEND A TRILLION DOLLARS",
+      "author": "ROWAN HOOPER",
+      "subtitle": null,
+      "confidence": 0.9
+    }
+  ]
+}

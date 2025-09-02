@@ -10,7 +10,8 @@
     "package": "npm run build && cd dist && zip -r ../textract-processor.zip ."
   },
   "dependencies": {
-    "@packages/shared": "workspace:*"
+    "@packages/shared": "workspace:*",
+    "zod": "4.1.5"
   },
   "devDependencies": {
     

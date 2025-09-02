@@ -1,5 +1,3 @@
-// Common types used across Lambda functions
-
 export interface ProcessingMessage {
   bucket: string;
   key: string;
@@ -36,7 +34,7 @@ export interface ValidationResult {
 
 export interface ValidatedBook extends BookCandidate {
   validation: ValidationResult;
-  status: 'validated' | 'unvalidated';
+  status: "validated" | "unvalidated";
 }
 
 export interface FinalResults {
@@ -75,8 +73,8 @@ export interface S3EventRecord {
     sourceIPAddress: string;
   };
   responseElements: {
-    'x-amz-request-id': string;
-    'x-amz-id-2': string;
+    "x-amz-request-id": string;
+    "x-amz-id-2": string;
   };
   s3: {
     s3SchemaVersion: string;
@@ -93,7 +91,7 @@ export interface WebSocketRequestContext {
   connectionId: string;
   domainName: string;
   domainPrefix: string;
-  eventType: 'CONNECT' | 'DISCONNECT' | 'MESSAGE';
+  eventType: "CONNECT" | "DISCONNECT" | "MESSAGE";
   extendedRequestId: string;
   protocol: string;
   httpMethod: string;
@@ -127,7 +125,7 @@ export interface WebSocketEvent {
 }
 
 export interface WebSocketSubscribeMessage {
-  action: 'subscribe';
+  action: "subscribe";
   jobId: string;
 }
 

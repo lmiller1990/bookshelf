@@ -176,6 +176,9 @@ importers:
       '@packages/shared':
         specifier: workspace:*
         version: link:../shared
+      zod:
+        specifier: 4.1.5
+        version: 4.1.5
     devDependencies:
       '@aws-sdk/client-s3':
         specifier: ^3.879.0
@@ -883,6 +886,9 @@ packages:
   uuid@9.0.1:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
     hasBin: true
+
+  zod@4.1.5:
+    resolution: {integrity: sha512-rcUUZqlLJgBC33IT3PNMgsCq6TzLQEG/Ei/KTCU0PedSWRMAXoOUN+4t/0H+Q8bdnLPdqUYnvboJT0bn/229qg==}
 
 snapshots:
 
@@ -2263,3 +2269,5 @@ snapshots:
   undici-types@7.10.0: {}
 
   uuid@9.0.1: {}
+
+  zod@4.1.5: {}
