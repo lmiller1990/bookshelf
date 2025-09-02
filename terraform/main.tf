@@ -418,7 +418,7 @@ module "web_lambda" {
   
   function_name      = "${local.resource_prefix}-web"
   package_name       = "lambda-web-dist"
-  handler           = "lambda-web.handler"
+  handler           = "src/index.handler"
   execution_role_arn = aws_iam_role.lambda_execution_role.arn
   environment       = var.environment
   
@@ -435,7 +435,7 @@ module "upload_handler" {
   
   function_name      = "${local.resource_prefix}-upload-handler"
   package_name       = "upload-handler"
-  handler           = "index.handler"
+  handler           = "src/index.handler"
   execution_role_arn = aws_iam_role.lambda_execution_role.arn
   environment       = var.environment
   timeout           = 30
@@ -456,7 +456,7 @@ module "textract_processor" {
   
   function_name      = "${local.resource_prefix}-textract-processor"
   package_name       = "textract-processor"
-  handler           = "index.handler"
+  handler           = "src/index.handler"
   execution_role_arn = aws_iam_role.lambda_execution_role.arn
   environment       = var.environment
   timeout           = 300  # 5 minutes for Textract
@@ -478,7 +478,7 @@ module "bedrock_processor" {
   
   function_name      = "${local.resource_prefix}-bedrock-processor"
   package_name       = "bedrock-processor"
-  handler           = "index.handler"
+  handler           = "src/index.handler"
   execution_role_arn = aws_iam_role.lambda_execution_role.arn
   environment       = var.environment
   timeout           = 180  # 3 minutes for LLM
@@ -500,7 +500,7 @@ module "book_validator" {
   
   function_name      = "${local.resource_prefix}-book-validator"
   package_name       = "book-validator"
-  handler           = "index.handler"
+  handler           = "src/index.handler"
   execution_role_arn = aws_iam_role.lambda_execution_role.arn
   environment       = var.environment
   timeout           = 120  # 2 minutes for API calls
@@ -524,7 +524,7 @@ module "websocket_connection_manager" {
   
   function_name      = "${local.resource_prefix}-websocket-connection-manager"
   package_name       = "websocket-connection-manager"
-  handler           = "index.handler"
+  handler           = "src/index.handler"
   execution_role_arn = aws_iam_role.lambda_execution_role.arn
   environment       = var.environment
   timeout           = 30
@@ -545,7 +545,7 @@ module "sns_notification_handler" {
   
   function_name      = "${local.resource_prefix}-sns-notification-handler"
   package_name       = "sns-notification-handler"
-  handler           = "index.handler"
+  handler           = "src/index.handler"
   execution_role_arn = aws_iam_role.lambda_execution_role.arn
   environment       = var.environment
   timeout           = 30
