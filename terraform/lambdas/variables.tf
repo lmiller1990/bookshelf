@@ -23,6 +23,18 @@ variable "execution_role_arn" {
   type        = string
 }
 
+variable "timeout" {
+  description = "The timeout for the Lambda function in seconds"
+  type        = number
+  default     = 30
+}
+
+variable "environment_variables" {
+  description = "Environment variables for the Lambda function"
+  type        = map(string)
+  default     = {}
+}
+
 variable "tags" {
   type = map(string)
 }

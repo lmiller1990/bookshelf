@@ -12,7 +12,14 @@ resource "aws_lambda_function" "web_lambda" {
   role             = var.execution_role_arn
   handler          = var.handler
   runtime          = "nodejs20.x"
-  timeout          = 30
+  timeout          = var.timeout
+
+  dynamic "environment" {
+    for_each = length(var.environment_variables) > 0 ? [1] : []
+    content {
+      variables = var.environment_variables
+    }
+  }
 
   tags = var.tags
 }
