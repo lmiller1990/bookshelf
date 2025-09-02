@@ -1,9 +1,8 @@
 node_modules
 .build
+.DS_Store
 *.HEIC
 .terraform
-*.jpg
-IMG_*
 
 # Terraform state files
 *.tfstate
@@ -20,3 +19,8 @@ terraform.tfvars
 packages/*/dist/
 dist/
 terraform/.build/
+*.js
+*.js.map
+*.d.ts
+dist
+terraform/lambdas/deploy/

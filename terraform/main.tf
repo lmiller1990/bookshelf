@@ -153,7 +153,7 @@ resource "aws_s3_bucket_notification" "upload_notification" {
   bucket = aws_s3_bucket.bookimg_bucket.id
 
   lambda_function {
-    lambda_function_arn = aws_lambda_function.upload_handler.arn
+    lambda_function_arn = module.upload_handler.function_arn
     events              = ["s3:ObjectCreated:*"]
   }
 
@@ -412,312 +412,16 @@ resource "aws_iam_role_policy_attachment" "lambda_service_policy_attachment" {
   role       = aws_iam_role.lambda_execution_role.name
 }
 
-# Archive Lambda function source code with automatic builds
-
-# Upload Handler
-data "archive_file" "upload_handler_src" {
-  type        = "zip"
-  source_dir  = "../packages/upload-handler/src"
-  output_path = "/tmp/upload_handler_src.zip"
-}
-
-resource "null_resource" "build_upload_handler" {
-  triggers = {
-    src_hash = data.archive_file.upload_handler_src.output_base64sha256
-  }
+# Web Lambda using reusable module
+module "web_lambda" {
+  source = "./lambdas"
   
-  provisioner "local-exec" {
-    command = "cd ../packages/upload-handler && npm run build"
-  }
-}
-
-data "archive_file" "upload_handler" {
-  type        = "zip"
-  source_dir  = "../packages/upload-handler/dist"
-  output_path = "upload_handler.zip"
+  function_name      = "${local.resource_prefix}-web"
+  package_name       = "lambda-web-dist"
+  handler           = "src/index.handler"
+  execution_role_arn = aws_iam_role.lambda_execution_role.arn
+  environment       = var.environment
   
-  depends_on = [null_resource.build_upload_handler]
-}
-
-# Textract Processor
-data "archive_file" "textract_processor_src" {
-  type        = "zip"
-  source_dir  = "../packages/textract-processor/src"
-  output_path = "/tmp/textract_processor_src.zip"
-}
-
-resource "null_resource" "build_textract_processor" {
-  triggers = {
-    src_hash = data.archive_file.textract_processor_src.output_base64sha256
-  }
-  
-  provisioner "local-exec" {
-    command = "cd ../packages/textract-processor && npm run build"
-  }
-}
-
-data "archive_file" "textract_processor" {
-  type        = "zip"
-  source_dir  = "../packages/textract-processor/dist"
-  output_path = "textract_processor.zip"
-  
-  depends_on = [null_resource.build_textract_processor]
-}
-
-# Bedrock Processor
-data "archive_file" "bedrock_processor_src" {
-  type        = "zip"
-  source_dir  = "../packages/bedrock-processor/src"
-  output_path = "/tmp/bedrock_processor_src.zip"
-}
-
-resource "null_resource" "build_bedrock_processor" {
-  triggers = {
-    src_hash = data.archive_file.bedrock_processor_src.output_base64sha256
-  }
-  
-  provisioner "local-exec" {
-    command = "cd ../packages/bedrock-processor && npm run build"
-  }
-}
-
-data "archive_file" "bedrock_processor" {
-  type        = "zip"
-  source_dir  = "../packages/bedrock-processor/dist"
-  output_path = "bedrock_processor.zip"
-  
-  depends_on = [null_resource.build_bedrock_processor]
-}
-
-# Book Validator
-data "archive_file" "book_validator_src" {
-  type        = "zip"
-  source_dir  = "../packages/book-validator/src"
-  output_path = "/tmp/book_validator_src.zip"
-}
-
-resource "null_resource" "build_book_validator" {
-  triggers = {
-    src_hash = data.archive_file.book_validator_src.output_base64sha256
-  }
-  
-  provisioner "local-exec" {
-    command = "cd ../packages/book-validator && npm run build"
-  }
-}
-
-data "archive_file" "book_validator" {
-  type        = "zip"
-  source_dir  = "../packages/book-validator/dist"
-  output_path = "book_validator.zip"
-  
-  depends_on = [null_resource.build_book_validator]
-}
-
-# Web Lambda (lambda-web-dist)
-locals {
-  build_root     = "${path.module}/.build/web"
-  deploy_dir     = "${local.build_root}/deploy"
-  # Broaden triggers: lockfile, pkg, and source tree
-  build_trigger  = sha256(join(",", [
-    filesha256("${local.repo_root}/pnpm-lock.yaml"),
-    filesha256("${local.repo_root}/packages/lambda-web-dist/package.json"),
-    # crude: hash a list of source files; adjust glob as needed
-    sha256(join(",", [for f in fileset("${local.repo_root}/packages/lambda-web-dist", "**/*.{ts,tsx,js,jsx,json}") : filesha256("${local.repo_root}/packages/lambda-web-dist/${f}")]))
-  ]))
-}
-
-# Ensure directories exist at plan time to avoid archive_file flakiness
-resource "null_resource" "prepare_dirs" {
-  provisioner "local-exec" {
-    command = "mkdir -p ${local.deploy_dir}"
-  }
-  triggers = {
-    always = timestamp()
-  }
-}
-
-resource "null_resource" "build_web_lambda" {
-  triggers = {
-    build_trigger = local.build_trigger
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -euo pipefail
-      echo "Building lambda-web-dist..."
-      cd ${local.repo_root}
-      pnpm --filter=lambda-web-dist build
-      echo "Deploying to ${local.deploy_dir}..."
-      rm -rf ${local.deploy_dir}
-      pnpm --filter=lambda-web-dist deploy --prod ${local.deploy_dir}
-      echo "Web lambda build complete"
-    EOT
-  }
-
-  depends_on = [null_resource.prepare_dirs]
-}
-
-data "archive_file" "web_lambda" {
-  type        = "zip"
-  source_dir  = local.deploy_dir
-  output_path = "${path.module}/web_lambda.zip"
-
-  depends_on  = [null_resource.build_web_lambda]
-}
-
-# WebSocket Connection Manager
-data "archive_file" "websocket_connection_manager_src" {
-  type        = "zip"
-  source_dir  = "../packages/websocket-connection-manager/src"
-  output_path = "/tmp/websocket_connection_manager_src.zip"
-}
-
-resource "null_resource" "build_websocket_connection_manager" {
-  triggers = {
-    src_hash = data.archive_file.websocket_connection_manager_src.output_base64sha256
-  }
-  
-  provisioner "local-exec" {
-    command = "cd ../packages/websocket-connection-manager && npm run build"
-  }
-}
-
-data "archive_file" "websocket_connection_manager" {
-  type        = "zip"
-  source_dir  = "../packages/websocket-connection-manager/dist"
-  output_path = "websocket_connection_manager.zip"
-  
-  depends_on = [null_resource.build_websocket_connection_manager]
-}
-
-# SNS Notification Handler
-data "archive_file" "sns_notification_handler_src" {
-  type        = "zip"
-  source_dir  = "../packages/sns-notification-handler/src"
-  output_path = "/tmp/sns_notification_handler_src.zip"
-}
-
-resource "null_resource" "build_sns_notification_handler" {
-  triggers = {
-    src_hash = data.archive_file.sns_notification_handler_src.output_base64sha256
-  }
-  
-  provisioner "local-exec" {
-    command = "cd ../packages/sns-notification-handler && npm run build"
-  }
-}
-
-data "archive_file" "sns_notification_handler" {
-  type        = "zip"
-  source_dir  = "../packages/sns-notification-handler/dist"
-  output_path = "sns_notification_handler.zip"
-  
-  depends_on = [null_resource.build_sns_notification_handler]
-}
-
-# Lambda Functions
-resource "aws_lambda_function" "upload_handler" {
-  filename         = data.archive_file.upload_handler.output_path
-  source_code_hash = data.archive_file.upload_handler.output_base64sha256
-  function_name    = "${local.resource_prefix}-upload-handler"
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
-  runtime         = "nodejs20.x"
-  timeout         = 30
-
-  environment {
-    variables = {
-      TEXTRACT_QUEUE_URL = aws_sqs_queue.textract_queue.url
-    }
-  }
-
-  tags = {
-    Environment = var.environment
-    Project     = "BookImg"
-    Purpose     = "Handle S3 uploads and initiate processing"
-  }
-}
-
-resource "aws_lambda_function" "textract_processor" {
-  filename         = data.archive_file.textract_processor.output_path
-  source_code_hash = data.archive_file.textract_processor.output_base64sha256
-  function_name    = "${local.resource_prefix}-textract-processor"
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
-  runtime         = "nodejs20.x"
-  timeout         = 300  # 5 minutes for Textract
-
-  environment {
-    variables = {
-      RESULTS_BUCKET_NAME = aws_s3_bucket.bookimg_results.bucket
-      BEDROCK_QUEUE_URL   = aws_sqs_queue.bedrock_queue.url
-    }
-  }
-
-  tags = {
-    Environment = var.environment
-    Project     = "BookImg"
-    Purpose     = "Process images with Textract OCR"
-  }
-}
-
-resource "aws_lambda_function" "bedrock_processor" {
-  filename         = data.archive_file.bedrock_processor.output_path
-  source_code_hash = data.archive_file.bedrock_processor.output_base64sha256
-  function_name    = "${local.resource_prefix}-bedrock-processor"
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
-  runtime         = "nodejs20.x"
-  timeout         = 180  # 3 minutes for LLM
-
-  environment {
-    variables = {
-      RESULTS_BUCKET_NAME  = aws_s3_bucket.bookimg_results.bucket
-      VALIDATION_QUEUE_URL = aws_sqs_queue.validation_queue.url
-    }
-  }
-
-  tags = {
-    Environment = var.environment
-    Project     = "BookImg"
-    Purpose     = "Process OCR text with Bedrock LLM"
-  }
-}
-
-resource "aws_lambda_function" "book_validator" {
-  filename         = data.archive_file.book_validator.output_path
-  source_code_hash = data.archive_file.book_validator.output_base64sha256
-  function_name    = "${local.resource_prefix}-book-validator"
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
-  runtime         = "nodejs20.x"
-  timeout         = 120  # 2 minutes for API calls
-
-  environment {
-    variables = {
-      RESULTS_BUCKET_NAME    = aws_s3_bucket.bookimg_results.bucket
-      SNS_TOPIC_ARN          = aws_sns_topic.results_notifications.arn
-      GOOGLE_BOOKS_API_KEY   = var.google_books_api_key
-    }
-  }
-
-  tags = {
-    Environment = var.environment
-    Project     = "BookImg"
-    Purpose     = "Validate books with external APIs"
-  }
-}
-
-resource "aws_lambda_function" "web_lambda" {
-  filename         = data.archive_file.web_lambda.output_path
-  source_code_hash = data.archive_file.web_lambda.output_base64sha256
-  function_name    = "${local.resource_prefix}-web"
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "lambda-web.handler"
-  runtime         = "nodejs20.x"
-  timeout         = 30
-
   tags = {
     Environment = var.environment
     Project     = "BookImg"
@@ -725,21 +429,110 @@ resource "aws_lambda_function" "web_lambda" {
   }
 }
 
-resource "aws_lambda_function" "websocket_connection_manager" {
-  filename         = data.archive_file.websocket_connection_manager.output_path
-  source_code_hash = data.archive_file.websocket_connection_manager.output_base64sha256
-  function_name    = "${local.resource_prefix}-websocket-connection-manager"
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
-  runtime         = "nodejs20.x"
-  timeout         = 30
-
-  environment {
-    variables = {
-      DYNAMODB_TABLE_NAME = aws_dynamodb_table.websocket_connections.name
-    }
+# Lambda Functions
+module "upload_handler" {
+  source = "./lambdas"
+  
+  function_name      = "${local.resource_prefix}-upload-handler"
+  package_name       = "upload-handler"
+  handler           = "src/index.handler"
+  execution_role_arn = aws_iam_role.lambda_execution_role.arn
+  environment       = var.environment
+  timeout           = 30
+  
+  environment_variables = {
+    TEXTRACT_QUEUE_URL = aws_sqs_queue.textract_queue.url
   }
+  
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "Handle S3 uploads and initiate processing"
+  }
+}
 
+module "textract_processor" {
+  source = "./lambdas"
+  
+  function_name      = "${local.resource_prefix}-textract-processor"
+  package_name       = "textract-processor"
+  handler           = "src/index.handler"
+  execution_role_arn = aws_iam_role.lambda_execution_role.arn
+  environment       = var.environment
+  timeout           = 300  # 5 minutes for Textract
+  
+  environment_variables = {
+    RESULTS_BUCKET_NAME = aws_s3_bucket.bookimg_results.bucket
+    BEDROCK_QUEUE_URL   = aws_sqs_queue.bedrock_queue.url
+  }
+  
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "Process images with Textract OCR"
+  }
+}
+
+module "bedrock_processor" {
+  source = "./lambdas"
+  
+  function_name      = "${local.resource_prefix}-bedrock-processor"
+  package_name       = "bedrock-processor"
+  handler           = "src/index.handler"
+  execution_role_arn = aws_iam_role.lambda_execution_role.arn
+  environment       = var.environment
+  timeout           = 180  # 3 minutes for LLM
+  
+  environment_variables = {
+    RESULTS_BUCKET_NAME  = aws_s3_bucket.bookimg_results.bucket
+    VALIDATION_QUEUE_URL = aws_sqs_queue.validation_queue.url
+  }
+  
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "Process OCR text with Bedrock LLM"
+  }
+}
+
+module "book_validator" {
+  source = "./lambdas"
+  
+  function_name      = "${local.resource_prefix}-book-validator"
+  package_name       = "book-validator"
+  handler           = "src/index.handler"
+  execution_role_arn = aws_iam_role.lambda_execution_role.arn
+  environment       = var.environment
+  timeout           = 120  # 2 minutes for API calls
+  
+  environment_variables = {
+    RESULTS_BUCKET_NAME    = aws_s3_bucket.bookimg_results.bucket
+    SNS_TOPIC_ARN          = aws_sns_topic.results_notifications.arn
+    GOOGLE_BOOKS_API_KEY   = var.google_books_api_key
+  }
+  
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "Validate books with external APIs"
+  }
+}
+
+
+module "websocket_connection_manager" {
+  source = "./lambdas"
+  
+  function_name      = "${local.resource_prefix}-websocket-connection-manager"
+  package_name       = "websocket-connection-manager"
+  handler           = "src/index.handler"
+  execution_role_arn = aws_iam_role.lambda_execution_role.arn
+  environment       = var.environment
+  timeout           = 30
+  
+  environment_variables = {
+    DYNAMODB_TABLE_NAME = aws_dynamodb_table.websocket_connections.name
+  }
+  
   tags = {
     Environment = var.environment
     Project     = "BookImg"
@@ -747,22 +540,21 @@ resource "aws_lambda_function" "websocket_connection_manager" {
   }
 }
 
-resource "aws_lambda_function" "sns_notification_handler" {
-  filename         = data.archive_file.sns_notification_handler.output_path
-  source_code_hash = data.archive_file.sns_notification_handler.output_base64sha256
-  function_name    = "${local.resource_prefix}-sns-notification-handler"
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "index.handler"
-  runtime         = "nodejs20.x"
-  timeout         = 30
-
-  environment {
-    variables = {
-      DYNAMODB_TABLE_NAME = aws_dynamodb_table.websocket_connections.name
-      WEBSOCKET_API_ENDPOINT = "https://${aws_apigatewayv2_api.websocket_api.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${aws_apigatewayv2_stage.websocket_stage.name}"
-    }
+module "sns_notification_handler" {
+  source = "./lambdas"
+  
+  function_name      = "${local.resource_prefix}-sns-notification-handler"
+  package_name       = "sns-notification-handler"
+  handler           = "src/index.handler"
+  execution_role_arn = aws_iam_role.lambda_execution_role.arn
+  environment       = var.environment
+  timeout           = 30
+  
+  environment_variables = {
+    DYNAMODB_TABLE_NAME = aws_dynamodb_table.websocket_connections.name
+    WEBSOCKET_API_ENDPOINT = "https://${aws_apigatewayv2_api.websocket_api.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${aws_apigatewayv2_stage.websocket_stage.name}"
   }
-
+  
   tags = {
     Environment = var.environment
     Project     = "BookImg"
@@ -774,7 +566,7 @@ resource "aws_lambda_function" "sns_notification_handler" {
 resource "aws_lambda_permission" "s3_invoke_upload_handler" {
   statement_id  = "AllowExecutionFromS3Bucket"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.upload_handler.function_name
+  function_name = module.upload_handler.function_name
   principal     = "s3.amazonaws.com"
   source_arn    = aws_s3_bucket.bookimg_bucket.arn
 }
@@ -782,19 +574,19 @@ resource "aws_lambda_permission" "s3_invoke_upload_handler" {
 # Lambda event source mappings for SQS
 resource "aws_lambda_event_source_mapping" "textract_queue_mapping" {
   event_source_arn = aws_sqs_queue.textract_queue.arn
-  function_name    = aws_lambda_function.textract_processor.arn
+  function_name    = module.textract_processor.function_arn
   batch_size       = 1
 }
 
 resource "aws_lambda_event_source_mapping" "bedrock_queue_mapping" {
   event_source_arn = aws_sqs_queue.bedrock_queue.arn
-  function_name    = aws_lambda_function.bedrock_processor.arn
+  function_name    = module.bedrock_processor.function_arn
   batch_size       = 1
 }
 
 resource "aws_lambda_event_source_mapping" "validation_queue_mapping" {
   event_source_arn = aws_sqs_queue.validation_queue.arn
-  function_name    = aws_lambda_function.book_validator.arn
+  function_name    = module.book_validator.function_arn
   batch_size       = 1
 }
 
@@ -802,7 +594,7 @@ resource "aws_lambda_event_source_mapping" "validation_queue_mapping" {
 resource "aws_lambda_permission" "websocket_connect_permission" {
   statement_id  = "AllowExecutionFromWebSocketConnect"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.websocket_connection_manager.function_name
+  function_name = module.websocket_connection_manager.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.websocket_api.execution_arn}/*/*"
 }
@@ -810,7 +602,7 @@ resource "aws_lambda_permission" "websocket_connect_permission" {
 resource "aws_lambda_permission" "websocket_disconnect_permission" {
   statement_id  = "AllowExecutionFromWebSocketDisconnect"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.websocket_connection_manager.function_name
+  function_name = module.websocket_connection_manager.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.websocket_api.execution_arn}/*/*"
 }
@@ -818,7 +610,7 @@ resource "aws_lambda_permission" "websocket_disconnect_permission" {
 resource "aws_lambda_permission" "websocket_default_permission" {
   statement_id  = "AllowExecutionFromWebSocketDefault"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.websocket_connection_manager.function_name
+  function_name = module.websocket_connection_manager.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.websocket_api.execution_arn}/*/*"
 }
@@ -827,13 +619,13 @@ resource "aws_lambda_permission" "websocket_default_permission" {
 resource "aws_sns_topic_subscription" "sns_notification_handler" {
   topic_arn = aws_sns_topic.results_notifications.arn
   protocol  = "lambda"
-  endpoint  = aws_lambda_function.sns_notification_handler.arn
+  endpoint  = module.sns_notification_handler.function_arn
 }
 
 resource "aws_lambda_permission" "sns_invoke_notification_handler" {
   statement_id  = "AllowExecutionFromSNS"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.sns_notification_handler.function_name
+  function_name = module.sns_notification_handler.function_name
   principal     = "sns.amazonaws.com"
   source_arn    = aws_sns_topic.results_notifications.arn
 }
@@ -861,7 +653,7 @@ resource "aws_apigatewayv2_api" "web_api" {
 resource "aws_apigatewayv2_integration" "web_lambda_integration" {
   api_id           = aws_apigatewayv2_api.web_api.id
   integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.web_lambda.invoke_arn
+  integration_uri  = module.web_lambda.invoke_arn
 }
 
 resource "aws_apigatewayv2_route" "web_route_catch_all" {
@@ -890,7 +682,7 @@ resource "aws_apigatewayv2_stage" "web_stage" {
 resource "aws_lambda_permission" "api_gateway_invoke_web_lambda" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.web_lambda.function_name
+  function_name = module.web_lambda.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.web_api.execution_arn}/*/*"
 }
@@ -931,19 +723,19 @@ resource "aws_apigatewayv2_route" "websocket_default" {
 resource "aws_apigatewayv2_integration" "websocket_connect_integration" {
   api_id           = aws_apigatewayv2_api.websocket_api.id
   integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.websocket_connection_manager.invoke_arn
+  integration_uri  = module.websocket_connection_manager.invoke_arn
 }
 
 resource "aws_apigatewayv2_integration" "websocket_disconnect_integration" {
   api_id           = aws_apigatewayv2_api.websocket_api.id
   integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.websocket_connection_manager.invoke_arn
+  integration_uri  = module.websocket_connection_manager.invoke_arn
 }
 
 resource "aws_apigatewayv2_integration" "websocket_default_integration" {
   api_id           = aws_apigatewayv2_api.websocket_api.id
   integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.websocket_connection_manager.invoke_arn
+  integration_uri  = module.websocket_connection_manager.invoke_arn
 }
 
 # WebSocket stage
@@ -994,13 +786,13 @@ output "sns_topic_arn" {
 
 output "lambda_functions" {
   value = {
-    upload_handler               = aws_lambda_function.upload_handler.function_name
-    textract_processor          = aws_lambda_function.textract_processor.function_name
-    bedrock_processor           = aws_lambda_function.bedrock_processor.function_name
-    book_validator              = aws_lambda_function.book_validator.function_name
-    web_lambda                  = aws_lambda_function.web_lambda.function_name
-    websocket_connection_manager = aws_lambda_function.websocket_connection_manager.function_name
-    sns_notification_handler    = aws_lambda_function.sns_notification_handler.function_name
+    upload_handler               = module.upload_handler.function_name
+    textract_processor          = module.textract_processor.function_name
+    bedrock_processor           = module.bedrock_processor.function_name
+    book_validator              = module.book_validator.function_name
+    web_lambda                  = module.web_lambda.function_name
+    websocket_connection_manager = module.websocket_connection_manager.function_name
+    sns_notification_handler    = module.sns_notification_handler.function_name
   }
 }
 
@@ -1025,15 +817,3 @@ output "secret_access_key" {
   sensitive = true
 }
 
-# Debug outputs for web lambda build paths
-output "debug_repo_root" {
-  value = local.repo_root
-}
-
-output "debug_build_root" {
-  value = "${path.module}/.build/web"
-}
-
-output "debug_deploy_dir" {
-  value = local.deploy_dir
-}

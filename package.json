@@ -23,9 +23,7 @@
   "devDependencies": {
     "@types/node": "^24.3.0",
     "typescript": "^5.9.2",
-    "esbuild": "^0.23.0"
-  },
-  "dependencies": {
+    
     "@aws-sdk/client-bedrock-runtime": "^3.879.0",
     "@aws-sdk/client-s3": "^3.879.0",
     "@aws-sdk/client-sns": "^3.879.0",
@@ -33,7 +31,9 @@
     "@aws-sdk/client-sqs": "^3.879.0",
     "@aws-sdk/client-dynamodb": "^3.879.0",
     "@aws-sdk/client-apigatewaymanagementapi": "^3.879.0",
-    "@aws-sdk/s3-request-presigner": "^3.879.0",
+    "@aws-sdk/s3-request-presigner": "^3.879.0"
+  },
+  "dependencies": {
     "@types/commander": "^2.12.5",
     "commander": "^14.0.0"
   }
