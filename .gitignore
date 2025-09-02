@@ -1,9 +1,8 @@
 node_modules
 .build
+.DS_Store
 *.HEIC
 .terraform
-*.jpg
-IMG_*
 
 # Terraform state files
 *.tfstate
