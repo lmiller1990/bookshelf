@@ -2,7 +2,6 @@
 <html>
   <head>
     <title>BookImg - AI Book Recognition</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -106,7 +105,7 @@
         const file = fileInput.files[0];
         if (!file) {
           document.getElementById("status").innerHTML =
-            '<div class="status error">❌ No file selected</div>';
+            '<div class="status error">No file selected</div>';
           return;
         }
 
@@ -153,17 +152,17 @@
 
           if (uploadResponse.ok) {
             document.getElementById("status").innerHTML =
-              '<div class="status info">✅ Upload successful! Processing started...<br><small>Job ID: ' +
+              '<div class="status info">Upload successful! Processing started...<br><small>Job ID: ' +
               jobId +
               "</small></div>";
           } else {
             document.getElementById("status").innerHTML =
-              '<div class="status error">❌ Upload failed</div>';
+              '<div class="status error">Upload failed</div>';
             if (websocket) websocket.close();
           }
         } catch (error) {
           document.getElementById("status").innerHTML =
-            '<div class="status error">❌ Upload error: ' +
+            '<div class="status error">Upload error: ' +
             error.message +
             "</div>";
           if (websocket) websocket.close();
@@ -206,9 +205,9 @@
                       book.validation?.authors?.join(", ") || book.author;
                     booksHtml +=
                       "<li><strong>" + title + "</strong> by " + authors;
-                    if (book.validation?.validated) booksHtml += " ✅";
-                    if (book.validation?.isbn)
+                    if (book.validation?.isbn) {
                       booksHtml += " (ISBN: " + book.validation.isbn + ")";
+                    }
                     booksHtml += "</li>";
                   });
                   booksHtml += "</ul>";
@@ -224,7 +223,7 @@
                     "</div>";
                 } else {
                   document.getElementById("status").innerHTML =
-                    '<div class="status info">✅ Processing complete - no books found in image</div>';
+                    '<div class="status info">Processing complete - no books found in image</div>';
                 }
                 websocket.close();
               }
