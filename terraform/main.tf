@@ -514,56 +514,21 @@ data "archive_file" "book_validator" {
   depends_on = [null_resource.build_book_validator]
 }
 
-# Web Lambda (lambda-web-dist)
-locals {
-  build_root     = "${path.module}/.build/web"
-  deploy_dir     = "${local.build_root}/deploy"
-  # Broaden triggers: lockfile, pkg, and source tree
-  build_trigger  = sha256(join(",", [
-    filesha256("${local.repo_root}/pnpm-lock.yaml"),
-    filesha256("${local.repo_root}/packages/lambda-web-dist/package.json"),
-    # crude: hash a list of source files; adjust glob as needed
-    sha256(join(",", [for f in fileset("${local.repo_root}/packages/lambda-web-dist", "**/*.{ts,tsx,js,jsx,json}") : filesha256("${local.repo_root}/packages/lambda-web-dist/${f}")]))
-  ]))
-}
-
-# Ensure directories exist at plan time to avoid archive_file flakiness
-resource "null_resource" "prepare_dirs" {
-  provisioner "local-exec" {
-    command = "mkdir -p ${local.deploy_dir}"
+# Web Lambda using reusable module
+module "web_lambda" {
+  source = "./lambdas"
+  
+  function_name      = "${local.resource_prefix}-web"
+  package_name       = "lambda-web-dist"
+  handler           = "lambda-web.handler"
+  execution_role_arn = aws_iam_role.lambda_execution_role.arn
+  environment       = var.environment
+  
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "Web interface for uploads"
   }
-  triggers = {
-    always = timestamp()
-  }
-}
-
-resource "null_resource" "build_web_lambda" {
-  triggers = {
-    build_trigger = local.build_trigger
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -euo pipefail
-      echo "Building lambda-web-dist..."
-      cd ${local.repo_root}
-      pnpm --filter=lambda-web-dist build
-      echo "Deploying to ${local.deploy_dir}..."
-      rm -rf ${local.deploy_dir}
-      pnpm --filter=lambda-web-dist deploy --prod ${local.deploy_dir}
-      echo "Web lambda build complete"
-    EOT
-  }
-
-  depends_on = [null_resource.prepare_dirs]
-}
-
-data "archive_file" "web_lambda" {
-  type        = "zip"
-  source_dir  = local.deploy_dir
-  output_path = "${path.module}/web_lambda.zip"
-
-  depends_on  = [null_resource.build_web_lambda]
 }
 
 # WebSocket Connection Manager
@@ -709,21 +674,6 @@ resource "aws_lambda_function" "book_validator" {
   }
 }
 
-resource "aws_lambda_function" "web_lambda" {
-  filename         = data.archive_file.web_lambda.output_path
-  source_code_hash = data.archive_file.web_lambda.output_base64sha256
-  function_name    = "${local.resource_prefix}-web"
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "lambda-web.handler"
-  runtime         = "nodejs20.x"
-  timeout         = 30
-
-  tags = {
-    Environment = var.environment
-    Project     = "BookImg"
-    Purpose     = "Web interface for uploads"
-  }
-}
 
 resource "aws_lambda_function" "websocket_connection_manager" {
   filename         = data.archive_file.websocket_connection_manager.output_path
@@ -861,7 +811,7 @@ resource "aws_apigatewayv2_api" "web_api" {
 resource "aws_apigatewayv2_integration" "web_lambda_integration" {
   api_id           = aws_apigatewayv2_api.web_api.id
   integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.web_lambda.invoke_arn
+  integration_uri  = module.web_lambda.invoke_arn
 }
 
 resource "aws_apigatewayv2_route" "web_route_catch_all" {
@@ -890,7 +840,7 @@ resource "aws_apigatewayv2_stage" "web_stage" {
 resource "aws_lambda_permission" "api_gateway_invoke_web_lambda" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.web_lambda.function_name
+  function_name = module.web_lambda.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.web_api.execution_arn}/*/*"
 }
@@ -998,7 +948,7 @@ output "lambda_functions" {
     textract_processor          = aws_lambda_function.textract_processor.function_name
     bedrock_processor           = aws_lambda_function.bedrock_processor.function_name
     book_validator              = aws_lambda_function.book_validator.function_name
-    web_lambda                  = aws_lambda_function.web_lambda.function_name
+    web_lambda                  = module.web_lambda.function_name
     websocket_connection_manager = aws_lambda_function.websocket_connection_manager.function_name
     sns_notification_handler    = aws_lambda_function.sns_notification_handler.function_name
   }
@@ -1025,15 +975,3 @@ output "secret_access_key" {
   sensitive = true
 }
 
-# Debug outputs for web lambda build paths
-output "debug_repo_root" {
-  value = local.repo_root
-}
-
-output "debug_build_root" {
-  value = "${path.module}/.build/web"
-}
-
-output "debug_deploy_dir" {
-  value = local.deploy_dir
-}
