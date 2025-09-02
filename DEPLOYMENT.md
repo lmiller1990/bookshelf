@@ -7,6 +7,7 @@ This document provides comprehensive deployment guidance for the BookImg AI book
 ## Prerequisites
 
 ### AWS Setup
+
 1. **AWS CLI configured** with appropriate profiles:
    - `bookimg-deployer` - For Terraform deployments (administrator access)
    - `bookimg-app` - For application runtime (minimal permissions)
@@ -18,14 +19,18 @@ This document provides comprehensive deployment guidance for the BookImg AI book
    - npm (for TypeScript monorepo and Lambda packaging)
 
 ### Modern TypeScript Monorepo Architecture
+
 BookImg now uses a modern monorepo structure with:
+
 - **TypeScript ESM modules** for all Lambda functions
 - **Automatic build system** integrated with Terraform
 - **Shared utilities** and types across all packages
 - **99% bundle size reduction** (from ~5MB to ~2-5KB per Lambda)
 
 ### AWS Account Setup
+
 Complete the AWS setup following `TERRAFORM.md` including:
+
 - Bootstrap Terraform state bucket
 - IAM users and roles configuration
 - AWS profile configuration
@@ -42,6 +47,7 @@ AWS_PROFILE=bookimg-deployer terraform apply
 ```
 
 This creates:
+
 - Terraform state S3 bucket with versioning and encryption
 - Basic IAM setup for deployments
 
@@ -55,6 +61,7 @@ AWS_PROFILE=bookimg-deployer terraform apply
 ```
 
 This creates:
+
 - S3 buckets for uploads and results
 - SQS queues with dead letter queues
 - **5 TypeScript Lambda functions** (automatically built from source)
@@ -64,7 +71,9 @@ This creates:
 - DynamoDB table for WebSocket connections
 
 ### ✨ Automatic Build System
+
 Terraform now automatically:
+
 - **Detects TypeScript source changes** via file hashing
 - **Builds Lambda functions** using esbuild when needed
 - **Packages optimized bundles** (1.8-4.6KB each)
@@ -110,12 +119,12 @@ data "archive_file" "bedrock_processor_src" {
   output_path = "/tmp/bedrock_processor_src.zip"
 }
 
-# 2. Trigger build when source changes  
+# 2. Trigger build when source changes
 resource "null_resource" "build_bedrock_processor" {
   triggers = {
     src_hash = data.archive_file.bedrock_processor_src.output_base64sha256
   }
-  
+
   provisioner "local-exec" {
     command = "cd ../packages/bedrock-processor && npm run build"
   }
@@ -141,6 +150,7 @@ Each Lambda package uses **esbuild** for optimized bundling:
 ```
 
 **Key optimizations:**
+
 - **Tree shaking**: Only code actually used is included
 - **External AWS SDK**: AWS Lambda runtime provides SDK (~4MB excluded)
 - **ESM modules**: Modern JavaScript for better performance
@@ -178,16 +188,17 @@ terraform apply -target=null_resource.build_bedrock_processor -target=aws_lambda
 
 ### Bundle Size Comparison
 
-| Lambda Function | Before (CommonJS) | After (TypeScript ESM) | Reduction |
-|----------------|------------------|----------------------|-----------|
-| textract-processor | ~5MB | 4.2KB | 99.9% |
-| bedrock-processor | ~5MB | 4.3KB | 99.9% |
-| book-validator | ~5MB | 4.6KB | 99.9% |
-| upload-handler | ~5MB | 1.8KB | 99.96% |
-| websocket-connection-manager | ~5MB | 3.5KB | 99.9% |
-| sns-notification-handler | ~5MB | 3.8KB | 99.9% |
+| Lambda Function              | Before (CommonJS) | After (TypeScript ESM) | Reduction |
+| ---------------------------- | ----------------- | ---------------------- | --------- |
+| textract-processor           | ~5MB              | 4.2KB                  | 99.9%     |
+| bedrock-processor            | ~5MB              | 4.3KB                  | 99.9%     |
+| book-validator               | ~5MB              | 4.6KB                  | 99.9%     |
+| upload-handler               | ~5MB              | 1.8KB                  | 99.96%    |
+| websocket-connection-manager | ~5MB              | 3.5KB                  | 99.9%     |
+| sns-notification-handler     | ~5MB              | 3.8KB                  | 99.9%     |
 
 **Benefits:**
+
 - ⚡ **Faster cold starts** (less code to load)
 - 💰 **Lower costs** (reduced storage and compute)
 - 🚀 **Better performance** (optimized bundles)
@@ -209,7 +220,7 @@ cd packages/textract-processor && npm run build
 cd packages/bedrock-processor && npm run build
 cd packages/book-validator && npm run build
 cd packages/upload-handler && npm run build
-cd packages/websocket-connection-manager && npm run build  
+cd packages/websocket-connection-manager && npm run build
 cd packages/sns-notification-handler && npm run build
 ```
 
@@ -239,7 +250,7 @@ cd packages/bedrock-processor
 npm install new-dependency
 
 # Add to shared utilities
-cd packages/shared  
+cd packages/shared
 npm install @aws-sdk/client-new-service
 npm run build
 
@@ -261,7 +272,7 @@ aws s3 ls | grep bookimg-uat
 
 # Check Lambda functions (should show 6 functions)
 aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `bookimg-uat`)].FunctionName'
-# Expected: textract-processor, bedrock-processor, book-validator, 
+# Expected: textract-processor, bedrock-processor, book-validator,
 #           upload-handler, websocket-connection-manager, sns-notification-handler
 
 # Verify SQS queues
@@ -289,7 +300,7 @@ aws s3 cp your-test-image.jpg s3://bookimg-uat/test-$(date +%s).jpg
 # Monitor complete processing pipeline via CloudWatch logs
 aws logs tail /aws/lambda/bookimg-uat-upload-handler --follow &
 aws logs tail /aws/lambda/bookimg-uat-textract-processor --follow &
-aws logs tail /aws/lambda/bookimg-uat-bedrock-processor --follow &  
+aws logs tail /aws/lambda/bookimg-uat-bedrock-processor --follow &
 aws logs tail /aws/lambda/bookimg-uat-book-validator --follow &
 aws logs tail /aws/lambda/bookimg-uat-sns-notification-handler --follow &
 
@@ -306,6 +317,7 @@ aws s3 ls s3://bookimg-uat-results/ --recursive
 **Symptom**: `Error: Error locking state`
 
 **Solution**:
+
 ```bash
 # Force unlock (use carefully!)
 terraform force-unlock LOCK_ID
@@ -318,6 +330,7 @@ terraform force-unlock LOCK_ID
 **Symptom**: `Error: Build failed` or TypeScript compilation errors
 
 **Diagnosis**:
+
 ```bash
 # Test build locally
 cd packages/bedrock-processor
@@ -331,6 +344,7 @@ cd packages/shared && npm run build
 ```
 
 **Solution**: Fix TypeScript errors and rebuild:
+
 ```bash
 # Rebuild shared utilities first
 cd packages/shared && npm run build
@@ -347,6 +361,7 @@ cd terraform && terraform apply
 **Symptom**: `Error: Cannot find module` in Lambda logs with TypeScript packages
 
 **Diagnosis**:
+
 ```bash
 # Check Lambda package contents
 unzip -l terraform/bedrock_processor.zip
@@ -358,6 +373,7 @@ cat /tmp/lambda-check/index.js | head -10
 ```
 
 **Solution**: Verify build configuration and external dependencies:
+
 ```bash
 # Ensure AWS SDK is marked as external
 grep -r "external.*aws-sdk" packages/*/package.json
@@ -372,6 +388,7 @@ cd terraform && terraform apply
 **Symptom**: `{"message":"Not Found"}` when accessing web interface
 
 **Diagnosis**:
+
 ```bash
 # Check API Gateway configuration
 aws apigatewayv2 get-api --api-id $(terraform output web_api_url | cut -d'/' -f3 | cut -d'.' -f1)
@@ -384,6 +401,7 @@ aws apigatewayv2 get-stages --api-id API_ID
 ```
 
 **Solution**: Ensure using correct URL with stage:
+
 ```bash
 # Wrong: https://api-id.execute-api.region.amazonaws.com
 # Correct: https://api-id.execute-api.region.amazonaws.com/UAT
@@ -395,6 +413,7 @@ echo $(terraform output -raw web_api_url)
 **Symptom**: Lambda cannot read/write S3 objects
 
 **Diagnosis**:
+
 ```bash
 # Check Lambda execution role permissions
 aws iam get-role-policy --role-name bookimg-uat-lambda-execution-role --policy-name lambda-service-policy
@@ -412,6 +431,7 @@ aws s3 ls s3://bookimg-uat/ --profile bookimg-app
 **Symptom**: First requests to API Gateway take 5-10 seconds
 
 **Solutions**:
+
 - Increase Lambda memory allocation (more CPU allocated proportionally)
 - Consider Lambda provisioned concurrency for consistent performance
 - Optimize Lambda package size by removing unnecessary dependencies
@@ -421,6 +441,7 @@ aws s3 ls s3://bookimg-uat/ --profile bookimg-app
 **Symptom**: Images uploaded but not processed quickly
 
 **Diagnosis**:
+
 ```bash
 # Check SQS queue depths
 aws sqs get-queue-attributes \
@@ -434,6 +455,7 @@ aws sqs get-queue-attributes \
 ```
 
 **Solutions**:
+
 - Increase Lambda timeout for processing stages
 - Check CloudWatch logs for errors causing retries
 - Increase Lambda memory for faster processing
@@ -443,23 +465,27 @@ aws sqs get-queue-attributes \
 ### Development vs Production
 
 #### Environment Variables
+
 Configure different environments via Terraform variables:
 
 ```bash
 # Development deployment
 terraform apply -var="environment=DEV"
 
-# Production deployment  
+# Production deployment
 terraform apply -var="environment=PROD"
 ```
 
 This creates separate resources:
+
 - `bookimg-dev-*` vs `bookimg-prod-*`
 - Separate S3 buckets, queues, Lambda functions
 - Independent API Gateway endpoints
 
 #### Resource Isolation
+
 Each environment has completely isolated:
+
 - AWS resources (no sharing)
 - Terraform state files
 - IAM roles and permissions
@@ -468,6 +494,7 @@ Each environment has completely isolated:
 ### Configuration Management
 
 #### Terraform Variables
+
 Key variables for environment customization:
 
 ```terraform
@@ -485,6 +512,7 @@ variable "aws_region" {
 ```
 
 #### Environment-Specific Configuration
+
 Create environment-specific `.tfvars` files:
 
 ```bash
@@ -493,13 +521,14 @@ environment = "DEV"
 lambda_timeout = 30
 lambda_memory = 128
 
-# environments/prod.tfvars  
+# environments/prod.tfvars
 environment = "PROD"
 lambda_timeout = 300
 lambda_memory = 512
 ```
 
 Deploy with:
+
 ```bash
 terraform apply -var-file=environments/prod.tfvars
 ```
@@ -519,38 +548,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
-          
+          node-version: "20"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
-        
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-southeast-2
-          
+
       - name: Setup monorepo dependencies
         run: |
           npm install
-          
+
       - name: Build shared utilities
         run: |
           cd packages/shared
           npm run build
-          
+
       - name: Deploy infrastructure (with automatic TypeScript builds)
         run: |
           cd terraform
           terraform init
           terraform apply -auto-approve
           # Terraform automatically builds all TypeScript packages as needed
-          
+
       - name: Test deployment
         run: |
           WEB_URL=$(cd terraform && terraform output -raw web_api_url)
@@ -562,12 +591,14 @@ jobs:
 ### CloudWatch Monitoring
 
 #### Key Metrics to Monitor
+
 - Lambda function duration and error rates
 - SQS queue depth and message age
 - API Gateway request counts and latency
 - S3 storage usage and request patterns
 
 #### Useful CloudWatch Queries
+
 ```bash
 # Lambda errors in last 24 hours
 aws logs filter-log-events \
@@ -584,12 +615,14 @@ aws logs filter-log-events \
 ### Regular Maintenance
 
 #### Monthly Tasks
+
 - Review CloudWatch costs and optimize unused resources
 - Check dead letter queues for failed messages
 - Update Lambda runtime versions if AWS deprecates current version
 - Review and rotate IAM access keys
 
 #### Quarterly Tasks
+
 - Update all dependencies in Lambda functions
 - Review and optimize Lambda memory/timeout settings
 - Analyze usage patterns and optimize infrastructure costs
@@ -600,6 +633,7 @@ aws logs filter-log-events \
 ### AWS Cost Monitoring
 
 #### Key Cost Drivers
+
 1. **Lambda invocations and duration** (typically largest cost)
 2. **S3 storage and requests** (grows over time)
 3. **API Gateway requests** (scales with usage)
@@ -622,6 +656,7 @@ aws ce get-cost-and-usage \
 ```
 
 #### Resource Right-sizing
+
 - **Lambda Memory**: Start with 128MB, increase only if needed for performance
 - **Lambda Timeout**: Use minimum required (30s for web, 300s for processing)
 - **SQS Retention**: Default 4 days sufficient for most use cases

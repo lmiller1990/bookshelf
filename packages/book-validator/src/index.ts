@@ -16,16 +16,17 @@ import {
 // Google Books API validation with API key
 async function validateWithGoogleBooks(
   title: string,
-  author: string
+  author: string,
 ): Promise<ValidationResult> {
   try {
-    const query = encodeURIComponent(`"${title}" "${author}"`);
+    const query = encodeURIComponent(`${title}+${author}`);
     const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
     const url = apiKey
       ? `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1&key=${apiKey}`
       : `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`;
 
     const response = await fetch(url);
+    console.log(url);
     const data = (await response.json()) as any; // TODO type
 
     if (data.items && data.items.length > 0) {
@@ -71,7 +72,7 @@ export const handler = async (event: SQSEvent) => {
 
         const validation = await validateWithGoogleBooks(
           candidate.title,
-          candidate.author
+          candidate.author,
         );
 
         if (validation.validated) {
@@ -101,7 +102,7 @@ export const handler = async (event: SQSEvent) => {
       console.log(
         `Validation complete: ${finalResults.validatedCount}/${
           finalResults.totalCandidates
-        } books validated. Those are ${JSON.stringify(validatedBooks, null, 4)}`
+        } books validated. Those are ${JSON.stringify(validatedBooks, null, 4)}`,
       );
 
       // Store final results
@@ -112,7 +113,7 @@ export const handler = async (event: SQSEvent) => {
           Key: `${jobId}/final-results.json`,
           Body: JSON.stringify(finalResults, null, 2),
           ContentType: "application/json",
-        })
+        }),
       );
 
       // Publish completion notification
@@ -130,9 +131,9 @@ export const handler = async (event: SQSEvent) => {
               resultsLocation: `s3://${resultsBucket}/${jobId}/final-results.json`,
             },
             null,
-            2
+            2,
           ),
-        })
+        }),
       );
 
       console.log(`Published completion notification for job: ${jobId}`);
@@ -144,3 +145,92 @@ export const handler = async (event: SQSEvent) => {
 
   return { statusCode: 200, body: "Book validation complete" };
 };
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const candidates = [
+    {
+      title: "TRANSFORMER",
+      author: "NICK LANE",
+      subtitle: null,
+      confidence: 0.9,
+    },
+    {
+      title: "Numbers Don't Lie",
+      author: "Vaclav Smil",
+      subtitle: null,
+      confidence: 0.8,
+    },
+    {
+      title: "THE POSSIBILITY OF LIFE",
+      author: "JAIME DUCKWORTH FALKOWSKI",
+      subtitle: null,
+      confidence: 0.9,
+    },
+    {
+      title: "LIFE'S ENGINES",
+      author: null,
+      subtitle: null,
+      confidence: 0.7,
+    },
+    {
+      title: "FOLLOW YOUR GUT",
+      author: "Barr Crocetti Wild Stinson Hutchings",
+      subtitle: null,
+      confidence: 0.8,
+    },
+    {
+      title:
+        "The truth, the lies and the unbelievable story of the original superfood",
+      author: "Matthew Evans",
+      subtitle: null,
+      confidence: 0.9,
+    },
+    {
+      title: "THE BITCOIN STANDARD",
+      author: "AMMOUS",
+      subtitle: null,
+      confidence: 0.9,
+    },
+    {
+      title: "50 mathematical ideas you really need to know",
+      author: "Tony Crilly",
+      subtitle: null,
+      confidence: 0.8,
+    },
+    {
+      title: "FROM BACTERIA TO BACH AND BACK",
+      author: "DANIEL C. DENNETT",
+      subtitle: null,
+      confidence: 0.9,
+    },
+    {
+      title: "THE GENETIC LOTTERY FOR SOCIAL EQUALITY",
+      author: "HARDEN",
+      subtitle: null,
+      confidence: 0.8,
+    },
+    {
+      title: "Rebel Cell",
+      author: "ARNEY",
+      subtitle: "Cancer, Evolution and the Science of Life",
+      confidence: 0.9,
+    },
+    {
+      title: "UNWELL",
+      author: "MIKE McRAE",
+      subtitle: null,
+      confidence: 0.8,
+    },
+    {
+      title: "HOW TO SPEND A TRILLION DOLLARS",
+      author: "ROWAN HOOPER",
+      subtitle: null,
+      confidence: 0.9,
+    },
+  ];
+
+  for (const can of candidates) {
+    const res = await validateWithGoogleBooks(can.title, can.author ?? "");
+    console.log(res);
+  }
+}

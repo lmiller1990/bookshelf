@@ -12,14 +12,14 @@ import {
 export const handler = async (event: SNSEvent) => {
   console.log(
     "SNS Notification Handler triggered:",
-    JSON.stringify(event, null, 2)
+    JSON.stringify(event, null, 2),
   );
 
   for (const record of event.Records) {
     try {
       // Parse SNS message
       const snsMessage: ProcessingCompleteMessage = JSON.parse(
-        record.Sns.Message
+        record.Sns.Message,
       );
       const { jobId, status, books, validatedBooks, totalCandidates } =
         snsMessage;
@@ -34,7 +34,7 @@ export const handler = async (event: SNSEvent) => {
           Key: {
             jobId: { S: jobId },
           },
-        })
+        }),
       );
 
       if (!connectionResult.Item) {
@@ -46,8 +46,8 @@ export const handler = async (event: SNSEvent) => {
       if (!connectionId) {
         throw new Error(
           `Expected to find connectionId in connectionResult but got ${JSON.stringify(
-            connectionResult
-          )}`
+            connectionResult,
+          )}`,
         );
       }
       console.log(`Found connection ${connectionId} for job ${jobId}`);
@@ -76,11 +76,11 @@ export const handler = async (event: SNSEvent) => {
           new PostToConnectionCommand({
             ConnectionId: connectionId,
             Data: JSON.stringify(notificationMessage),
-          })
+          }),
         );
 
         console.log(
-          `✅ Sent notification to connection ${connectionId} for job ${jobId}`
+          `✅ Sent notification to connection ${connectionId} for job ${jobId}`,
         );
 
         // Clean up the connection record (job is complete)
@@ -90,14 +90,14 @@ export const handler = async (event: SNSEvent) => {
             Key: {
               jobId: { S: jobId },
             },
-          })
+          }),
         );
 
         console.log(`🧹 Cleaned up connection record for job ${jobId}`);
       } catch (wsError: any) {
         console.error(
           `❌ Failed to send WebSocket message to ${connectionId}:`,
-          wsError
+          wsError,
         );
 
         // If connection is gone, clean up the record
@@ -108,7 +108,7 @@ export const handler = async (event: SNSEvent) => {
               Key: {
                 jobId: { S: jobId },
               },
-            })
+            }),
           );
           console.log(`🧹 Cleaned up stale connection record for job ${jobId}`);
         }

@@ -41,7 +41,7 @@ app.get(
   "/upload-url",
   async (
     request: FastifyRequest<{ Querystring: UploadUrlQuery }>,
-    reply: FastifyReply
+    reply: FastifyReply,
   ) => {
     console.log(`Request to upload-url`);
     try {
@@ -73,7 +73,7 @@ app.get(
       console.error("Upload URL generation failed:", error);
       reply.code(500).send("Failed to generate upload URL");
     }
-  }
+  },
 );
 
 app.get("/health", async (request: FastifyRequest, reply: FastifyReply) => {

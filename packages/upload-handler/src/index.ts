@@ -40,7 +40,7 @@ export const handler = async (event: S3Event) => {
         new SendMessageCommand({
           QueueUrl: queueUrl,
           MessageBody: JSON.stringify(message),
-        })
+        }),
       );
 
       console.log(`Sent to Textract queue: ${JSON.stringify(message)}`);

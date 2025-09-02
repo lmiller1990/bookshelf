@@ -9,7 +9,7 @@ import {
 export const handler = async (event: WebSocketEvent) => {
   console.log(
     "WebSocket Connection Manager triggered:",
-    JSON.stringify(event, null, 2)
+    JSON.stringify(event, null, 2),
   );
 
   const { requestContext } = event;
@@ -54,7 +54,7 @@ async function handleConnect(connectionId: string) {
         ttl: { N: ttl.toString() },
         status: { S: "connected" },
       },
-    })
+    }),
   );
 
   console.log(`Stored temporary connection: ${connectionId}`);
@@ -74,7 +74,7 @@ async function handleDisconnect(connectionId: string) {
 
 async function handleMessage(
   connectionId: string,
-  message: WebSocketSubscribeMessage
+  message: WebSocketSubscribeMessage,
 ) {
   console.log(`Message from ${connectionId}:`, message);
 
@@ -95,7 +95,7 @@ async function handleMessage(
           ttl: { N: ttl.toString() },
           status: { S: "subscribed" },
         },
-      })
+      }),
     );
 
     console.log(`Subscribed connection ${connectionId} to job ${jobId}`);

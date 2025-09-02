@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <title>BookImg - AI Book Recognition</title>
@@ -122,7 +122,7 @@
               encodeURIComponent(file.type),
             {
               method: "GET",
-            }
+            },
           );
 
           if (!response.ok) {
@@ -173,7 +173,7 @@
       async function connectWebSocket(jobId) {
         return new Promise((resolve, reject) => {
           websocket = new WebSocket(
-            "wss://v4sgq1aoqj.execute-api.ap-southeast-2.amazonaws.com/UAT"
+            "wss://v4sgq1aoqj.execute-api.ap-southeast-2.amazonaws.com/UAT",
           );
 
           websocket.onopen = function () {
@@ -183,7 +183,7 @@
               JSON.stringify({
                 action: "subscribe",
                 jobId: jobId,
-              })
+              }),
             );
             resolve();
           };

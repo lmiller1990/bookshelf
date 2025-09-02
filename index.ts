@@ -50,7 +50,7 @@ async function uploadImage(imagePath: string, sessionDir: string) {
       Key: s3Key,
       Body: imageBuffer,
       ContentType: "image/jpeg",
-    })
+    }),
   );
 
   console.log(`Uploaded ${fileName} to s3://${BUCKET_NAME}/${s3Key}`);
@@ -206,7 +206,7 @@ interface TestResult {
 }
 
 async function extractCandidates(
-  extractedText: string
+  extractedText: string,
 ): Promise<CandidatesResponse> {
   const prompt = `You are a book metadata extractor. Given noisy OCR text from book spines, extract book title/author candidates.
 
@@ -277,7 +277,7 @@ ${extractedText}`;
 
 function calculateAccuracy(
   candidates: BookCandidate[],
-  groundTruth: GroundTruthBook[]
+  groundTruth: GroundTruthBook[],
 ): number {
   if (!groundTruth || groundTruth.length === 0) return 0;
 
@@ -294,8 +294,8 @@ function calculateAccuracy(
         candidate.authors.some(
           (candAuthor) =>
             candAuthor.toLowerCase().includes(truthAuthor.toLowerCase()) ||
-            truthAuthor.toLowerCase().includes(candAuthor.toLowerCase())
-        )
+            truthAuthor.toLowerCase().includes(candAuthor.toLowerCase()),
+        ),
       );
 
       return titleMatch || authorMatch;
@@ -327,7 +327,7 @@ function calculateStringSimilarity(str1: string, str2: string): number {
 
 function matchAuthors(
   candidateAuthors: string[],
-  libraryAuthors: string[]
+  libraryAuthors: string[],
 ): number {
   if (!candidateAuthors.length || !libraryAuthors.length) return 0;
 
@@ -343,7 +343,7 @@ function matchAuthors(
 
 async function searchOpenLibrary(
   title: string,
-  authors: string[]
+  authors: string[],
 ): Promise<OpenLibraryResponse> {
   const baseUrl = "https://openlibrary.org/search.json";
   const fields =
@@ -356,7 +356,7 @@ async function searchOpenLibrary(
   }
 
   const url = `${baseUrl}?q=${encodeURIComponent(
-    query
+    query,
   )}&fields=${fields}&limit=5`;
 
   console.log(`🔍 Searching Open Library: ${query}`);
@@ -378,7 +378,7 @@ async function searchOpenLibrary(
 
 async function searchGoogleBooks(
   title: string,
-  authors: string[]
+  authors: string[],
 ): Promise<GoogleBooksResponse> {
   const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
   if (!apiKey) {
@@ -387,7 +387,7 @@ async function searchGoogleBooks(
   }
 
   const baseUrl = "https://www.googleapis.com/books/v1/volumes";
-  
+
   // Build search query with special keywords
   let query = `intitle:"${title}"`;
   if (authors.length > 0) {
@@ -414,15 +414,15 @@ async function searchGoogleBooks(
 }
 
 async function validateWithOpenLibrary(
-  candidate: BookCandidate
+  candidate: BookCandidate,
 ): Promise<ValidatedBook> {
   console.log(
-    `\n🔎 Validating: "${candidate.title}" by ${candidate.authors.join(", ")}`
+    `\n🔎 Validating: "${candidate.title}" by ${candidate.authors.join(", ")}`,
   );
 
   const searchResults = await searchOpenLibrary(
     candidate.title,
-    candidate.authors
+    candidate.authors,
   );
 
   if (searchResults.docs.length === 0) {
@@ -442,11 +442,11 @@ async function validateWithOpenLibrary(
   for (const result of searchResults.docs) {
     const titleSimilarity = calculateStringSimilarity(
       candidate.title,
-      result.title
+      result.title,
     );
     const authorSimilarity = matchAuthors(
       candidate.authors,
-      result.author_name || []
+      result.author_name || [],
     );
 
     // Weighted scoring: title is more important
@@ -454,17 +454,17 @@ async function validateWithOpenLibrary(
 
     console.log(
       `  📖 "${result.title}" by ${(result.author_name || []).join(
-        ", "
+        ", ",
       )} - Score: ${score.toFixed(2)} (title: ${titleSimilarity.toFixed(
-        2
-      )}, author: ${authorSimilarity.toFixed(2)})`
+        2,
+      )}, author: ${authorSimilarity.toFixed(2)})`,
     );
 
     if (score > bestScore) {
       bestScore = score;
       bestMatch = result;
       matchReason = `Title match: ${titleSimilarity.toFixed(
-        2
+        2,
       )}, Author match: ${authorSimilarity.toFixed(2)}`;
     }
   }
@@ -475,7 +475,7 @@ async function validateWithOpenLibrary(
       confidence: candidate.confidence * 0.6,
       validationSource: "none",
       matchReason: `Best match score ${bestScore.toFixed(
-        2
+        2,
       )} below threshold 0.5`,
     };
   }
@@ -501,8 +501,8 @@ async function validateWithOpenLibrary(
 
   console.log(
     `✅ Validated: "${validated.title}" by ${validated.authors.join(
-      ", "
-    )} (confidence: ${finalConfidence.toFixed(2)})`
+      ", ",
+    )} (confidence: ${finalConfidence.toFixed(2)})`,
   );
 
   return {
@@ -515,15 +515,15 @@ async function validateWithOpenLibrary(
 }
 
 async function validateWithGoogleBooks(
-  candidate: BookCandidate
+  candidate: BookCandidate,
 ): Promise<ValidatedBook> {
   console.log(
-    `\n🔎 Validating with Google Books: "${candidate.title}" by ${candidate.authors.join(", ")}`
+    `\n🔎 Validating with Google Books: "${candidate.title}" by ${candidate.authors.join(", ")}`,
   );
 
   const searchResults = await searchGoogleBooks(
     candidate.title,
-    candidate.authors
+    candidate.authors,
   );
 
   if (!searchResults.items || searchResults.items.length === 0) {
@@ -543,29 +543,31 @@ async function validateWithGoogleBooks(
   for (const item of searchResults.items) {
     const titleSimilarity = calculateStringSimilarity(
       candidate.title,
-      item.volumeInfo.title
+      item.volumeInfo.title,
     );
     const authorSimilarity = matchAuthors(
       candidate.authors,
-      item.volumeInfo.authors || []
+      item.volumeInfo.authors || [],
     );
 
     // Weighted scoring: title is more important
     const score = titleSimilarity * 0.7 + authorSimilarity * 0.3;
 
     console.log(
-      `  📖 "${item.volumeInfo.title}" by ${(item.volumeInfo.authors || []).join(
-        ", "
+      `  📖 "${item.volumeInfo.title}" by ${(
+        item.volumeInfo.authors || []
+      ).join(
+        ", ",
       )} - Score: ${score.toFixed(2)} (title: ${titleSimilarity.toFixed(
-        2
-      )}, author: ${authorSimilarity.toFixed(2)})`
+        2,
+      )}, author: ${authorSimilarity.toFixed(2)})`,
     );
 
     if (score > bestScore) {
       bestScore = score;
       bestMatch = item;
       matchReason = `Title match: ${titleSimilarity.toFixed(
-        2
+        2,
       )}, Author match: ${authorSimilarity.toFixed(2)}`;
     }
   }
@@ -576,14 +578,14 @@ async function validateWithGoogleBooks(
       confidence: candidate.confidence * 0.6,
       validationSource: "none",
       matchReason: `Best match score ${bestScore.toFixed(
-        2
+        2,
       )} below threshold 0.5`,
     };
   }
 
   // Extract ISBN if available
   const isbn = bestMatch.volumeInfo.industryIdentifiers?.find(
-    (id) => id.type === "ISBN_13" || id.type === "ISBN_10"
+    (id) => id.type === "ISBN_13" || id.type === "ISBN_10",
   )?.identifier;
 
   // Extract publication year from date string
@@ -609,8 +611,8 @@ async function validateWithGoogleBooks(
 
   console.log(
     `✅ Validated with Google Books: "${validated.title}" by ${validated.authors.join(
-      ", "
-    )} (confidence: ${finalConfidence.toFixed(2)})`
+      ", ",
+    )} (confidence: ${finalConfidence.toFixed(2)})`,
   );
 
   return {
@@ -624,19 +626,21 @@ async function validateWithGoogleBooks(
 
 async function validateAllCandidates(
   candidates: BookCandidate[],
-  provider: "open_library" | "google_books" = "open_library"
+  provider: "open_library" | "google_books" = "open_library",
 ): Promise<ValidatedBook[]> {
-  const providerName = provider === "open_library" ? "Open Library" : "Google Books";
+  const providerName =
+    provider === "open_library" ? "Open Library" : "Google Books";
   console.log(
-    `\n🔍 Validating ${candidates.length} book candidates with ${providerName}...`
+    `\n🔍 Validating ${candidates.length} book candidates with ${providerName}...`,
   );
 
   const validatedBooks: ValidatedBook[] = [];
 
   for (const candidate of candidates) {
-    const validated = provider === "open_library" 
-      ? await validateWithOpenLibrary(candidate)
-      : await validateWithGoogleBooks(candidate);
+    const validated =
+      provider === "open_library"
+        ? await validateWithOpenLibrary(candidate)
+        : await validateWithGoogleBooks(candidate);
     validatedBooks.push(validated);
 
     // Be respectful to APIs
@@ -644,10 +648,10 @@ async function validateAllCandidates(
   }
 
   const validatedCount = validatedBooks.filter(
-    (b) => b.validationSource === provider
+    (b) => b.validationSource === provider,
   ).length;
   console.log(
-    `📊 Validation complete: ${validatedCount}/${candidates.length} books validated`
+    `📊 Validation complete: ${validatedCount}/${candidates.length} books validated`,
   );
 
   return validatedBooks;
@@ -655,7 +659,7 @@ async function validateAllCandidates(
 
 async function runTextractTests(
   s3Key: string,
-  groundTruth?: GroundTruthBook[]
+  groundTruth?: GroundTruthBook[],
 ): Promise<TestResult[]> {
   console.log(`\n🧪 Running Textract tests on ${s3Key}...`);
 
@@ -670,7 +674,7 @@ async function runTextractTests(
       console.log(
         `✅ ${textractResult.method}: ${
           textractResult.extractedText.length
-        } chars, confidence: ${textractResult.confidence?.toFixed(2) || "N/A"}`
+        } chars, confidence: ${textractResult.confidence?.toFixed(2) || "N/A"}`,
       );
 
       // Process through Bedrock for comparison
@@ -707,7 +711,7 @@ async function runTextractTests(
 
 function printTestResults(
   results: TestResult[],
-  groundTruth?: GroundTruthBook[]
+  groundTruth?: GroundTruthBook[],
 ) {
   console.log(`\n📊 TEST RESULTS SUMMARY`);
   console.log(`==========================================`);
@@ -719,7 +723,7 @@ function printTestResults(
     });
     console.log(`\n🎯 ACCURACY RANKINGS:`);
     const sortedResults = [...results].sort(
-      (a, b) => (b.accuracy || 0) - (a.accuracy || 0)
+      (a, b) => (b.accuracy || 0) - (a.accuracy || 0),
     );
     sortedResults.forEach((result, i) => {
       const accuracy =
@@ -734,10 +738,10 @@ function printTestResults(
   results.forEach((result, i) => {
     console.log(`\n--- ${i + 1}. ${result.method} ---`);
     console.log(
-      `Confidence: ${result.textractResult.confidence?.toFixed(2) || "N/A"}`
+      `Confidence: ${result.textractResult.confidence?.toFixed(2) || "N/A"}`,
     );
     console.log(
-      `Extracted Text Length: ${result.textractResult.extractedText.length}`
+      `Extracted Text Length: ${result.textractResult.extractedText.length}`,
     );
     console.log(`Candidates Found: ${result.candidates.candidates.length}`);
 
@@ -750,7 +754,7 @@ function printTestResults(
       result.textractResult.queries.forEach((q) => {
         console.log(`  Q: ${q.query}`);
         console.log(
-          `  A: ${q.answer} (confidence: ${q.confidence?.toFixed(2)})`
+          `  A: ${q.answer} (confidence: ${q.confidence?.toFixed(2)})`,
         );
       });
     }
@@ -764,7 +768,7 @@ function printTestResults(
       console.log(
         `  ${j + 1}. "${candidate.title || "Unknown Title"}" by ${authors} (${
           candidate.confidence
-        })`
+        })`,
       );
     });
 
@@ -776,7 +780,7 @@ function printTestResults(
 async function saveResults(
   sessionDir: string,
   extractedText: string,
-  candidates: CandidatesResponse
+  candidates: CandidatesResponse,
 ) {
   const textKey = `${sessionDir}/extracted-text.txt`;
   const candidatesKey = `${sessionDir}/candidates.json`;
@@ -788,7 +792,7 @@ async function saveResults(
         Key: textKey,
         Body: extractedText,
         ContentType: "text/plain",
-      })
+      }),
     ),
     s3Client.send(
       new PutObjectCommand({
@@ -796,7 +800,7 @@ async function saveResults(
         Key: candidatesKey,
         Body: JSON.stringify(candidates, null, 2),
         ContentType: "application/json",
-      })
+      }),
     ),
   ]);
 
@@ -806,7 +810,7 @@ async function saveResults(
 async function saveTestResults(
   sessionDir: string,
   testResults: TestResult[],
-  groundTruth?: GroundTruthBook[]
+  groundTruth?: GroundTruthBook[],
 ) {
   const resultsKey = `${sessionDir}/test-results.json`;
   const summaryKey = `${sessionDir}/test-summary.txt`;
@@ -827,7 +831,7 @@ async function saveTestResults(
           `Ground Truth (${groundTruth.length} books):`,
           ...groundTruth.map(
             (book, i) =>
-              `${i + 1}. "${book.title}" by ${book.authors.join(", ")}`
+              `${i + 1}. "${book.title}" by ${book.authors.join(", ")}`,
           ),
           ``,
           `Accuracy Rankings:`,
@@ -877,7 +881,7 @@ async function saveTestResults(
         Key: resultsKey,
         Body: JSON.stringify(testData, null, 2),
         ContentType: "application/json",
-      })
+      }),
     ),
     s3Client.send(
       new PutObjectCommand({
@@ -885,15 +889,18 @@ async function saveTestResults(
         Key: summaryKey,
         Body: summary,
         ContentType: "text/plain",
-      })
+      }),
     ),
   ]);
 
   console.log(`💾 Test results saved to s3://${BUCKET_NAME}/${sessionDir}/`);
 }
 
-async function testValidation(provider: "open_library" | "google_books" = "open_library") {
-  const providerName = provider === "open_library" ? "Open Library" : "Google Books";
+async function testValidation(
+  provider: "open_library" | "google_books" = "open_library",
+) {
+  const providerName =
+    provider === "open_library" ? "Open Library" : "Google Books";
   console.log(`🧪 Testing ${providerName} validation with sample books...\n`);
 
   const testCandidates: BookCandidate[] = [
@@ -963,26 +970,24 @@ async function testValidation(provider: "open_library" | "google_books" = "open_
     console.log(
       `\n${i + 1}. Original: "${
         book.original.title
-      }" by ${book.original.authors.join(", ")}`
+      }" by ${book.original.authors.join(", ")}`,
     );
     console.log(
       `   Status: ${
-        book.validationSource === provider
-          ? "✅ VALIDATED"
-          : "❌ NOT FOUND"
-      }`
+        book.validationSource === provider ? "✅ VALIDATED" : "❌ NOT FOUND"
+      }`,
     );
     console.log(
       `   Confidence: ${book.confidence.toFixed(
-        2
-      )} (was ${book.original.confidence.toFixed(2)})`
+        2,
+      )} (was ${book.original.confidence.toFixed(2)})`,
     );
 
     if (book.validated) {
       console.log(
         `   Validated: "${
           book.validated.title
-        }" by ${book.validated.authors.join(", ")}`
+        }" by ${book.validated.authors.join(", ")}`,
       );
       if (book.validated.isbn) console.log(`   ISBN: ${book.validated.isbn}`);
       if (book.validated.publisher)
@@ -1001,10 +1006,10 @@ async function testValidation(provider: "open_library" | "google_books" = "open_
   });
 
   const validatedCount = validatedBooks.filter(
-    (b) => b.validationSource === provider
+    (b) => b.validationSource === provider,
   ).length;
   console.log(
-    `\n🎯 Summary: ${validatedCount}/${testCandidates.length} books successfully validated`
+    `\n🎯 Summary: ${validatedCount}/${testCandidates.length} books successfully validated`,
   );
 }
 
@@ -1012,7 +1017,7 @@ async function saveValidatedResults(
   sessionDir: string,
   extractedText: string,
   candidates: CandidatesResponse,
-  validatedBooks: ValidatedBook[]
+  validatedBooks: ValidatedBook[],
 ) {
   const textKey = `${sessionDir}/extracted-text.txt`;
   const candidatesKey = `${sessionDir}/candidates.json`;
@@ -1025,7 +1030,7 @@ async function saveValidatedResults(
         Key: textKey,
         Body: extractedText,
         ContentType: "text/plain",
-      })
+      }),
     ),
     s3Client.send(
       new PutObjectCommand({
@@ -1033,7 +1038,7 @@ async function saveValidatedResults(
         Key: candidatesKey,
         Body: JSON.stringify(candidates, null, 2),
         ContentType: "application/json",
-      })
+      }),
     ),
     s3Client.send(
       new PutObjectCommand({
@@ -1041,7 +1046,7 @@ async function saveValidatedResults(
         Key: validatedKey,
         Body: JSON.stringify(validatedBooks, null, 2),
         ContentType: "application/json",
-      })
+      }),
     ),
   ]);
 
@@ -1050,7 +1055,7 @@ async function saveValidatedResults(
 
 async function extractCommand(imagePath: string, options: any) {
   console.log(`🚀 Starting book extraction from: ${imagePath}`);
-  
+
   const imageName = path.basename(imagePath, path.extname(imagePath));
   const timestamp = Date.now();
   const sessionDir = `${imageName}-${timestamp}`;
@@ -1058,26 +1063,42 @@ async function extractCommand(imagePath: string, options: any) {
   try {
     console.log("📦 Ensuring S3 bucket exists...");
     await ensureBucketExists();
-    
+
     console.log("📤 Uploading image...");
     const s3Key = await uploadImage(imagePath, sessionDir);
-    
+
     console.log("🔍 Extracting text with AWS Textract...");
     const extractedText = await extractText(s3Key);
-    
+
     console.log("🤖 Processing candidates with AWS Bedrock...");
     const candidates = await extractCandidates(extractedText);
-    
+
     let validatedBooks: ValidatedBook[] = [];
-    
+
     if (options.validate) {
       console.log(`🔎 Validating with ${options.validate}...`);
-      if (options.validate === 'openlibrary') {
-        validatedBooks = await validateAllCandidates(candidates.candidates, 'open_library');
-        await saveValidatedResults(sessionDir, extractedText, candidates, validatedBooks);
-      } else if (options.validate === 'googlebooks') {
-        validatedBooks = await validateAllCandidates(candidates.candidates, 'google_books');
-        await saveValidatedResults(sessionDir, extractedText, candidates, validatedBooks);
+      if (options.validate === "openlibrary") {
+        validatedBooks = await validateAllCandidates(
+          candidates.candidates,
+          "open_library",
+        );
+        await saveValidatedResults(
+          sessionDir,
+          extractedText,
+          candidates,
+          validatedBooks,
+        );
+      } else if (options.validate === "googlebooks") {
+        validatedBooks = await validateAllCandidates(
+          candidates.candidates,
+          "google_books",
+        );
+        await saveValidatedResults(
+          sessionDir,
+          extractedText,
+          candidates,
+          validatedBooks,
+        );
       } else {
         console.warn(`⚠️ Unknown validation provider: ${options.validate}`);
         await saveResults(sessionDir, extractedText, candidates);
@@ -1085,38 +1106,54 @@ async function extractCommand(imagePath: string, options: any) {
     } else {
       await saveResults(sessionDir, extractedText, candidates);
     }
-    
+
     // Display results
     console.log("\n📖 EXTRACTION RESULTS:");
     console.log("=====================");
-    
+
     if (validatedBooks.length > 0) {
       validatedBooks.forEach((book, i) => {
-        console.log(`\n${i + 1}. ${book.validationSource !== 'none' ? '✅' : '❓'} "${book.original.title}"`);
-        console.log(`   Authors: ${book.original.authors.join(', ') || 'Unknown'}`);
+        console.log(
+          `\n${i + 1}. ${book.validationSource !== "none" ? "✅" : "❓"} "${book.original.title}"`,
+        );
+        console.log(
+          `   Authors: ${book.original.authors.join(", ") || "Unknown"}`,
+        );
         console.log(`   Confidence: ${book.confidence.toFixed(2)}`);
-        
+
         if (book.validated) {
           console.log(`   📚 Validated: "${book.validated.title}"`);
-          console.log(`   👥 Authors: ${book.validated.authors.join(', ')}`);
-          if (book.validated.isbn) console.log(`   📄 ISBN: ${book.validated.isbn}`);
-          if (book.validated.publisher) console.log(`   🏢 Publisher: ${book.validated.publisher}`);
-          if (book.validated.publishYear) console.log(`   📅 Year: ${book.validated.publishYear}`);
-          if (book.validated.openLibraryUrl) console.log(`   🔗 Open Library: ${book.validated.openLibraryUrl}`);
-          if (book.validated.googleBooksUrl) console.log(`   🔗 Google Books: ${book.validated.googleBooksUrl}`);
+          console.log(`   👥 Authors: ${book.validated.authors.join(", ")}`);
+          if (book.validated.isbn)
+            console.log(`   📄 ISBN: ${book.validated.isbn}`);
+          if (book.validated.publisher)
+            console.log(`   🏢 Publisher: ${book.validated.publisher}`);
+          if (book.validated.publishYear)
+            console.log(`   📅 Year: ${book.validated.publishYear}`);
+          if (book.validated.openLibraryUrl)
+            console.log(`   🔗 Open Library: ${book.validated.openLibraryUrl}`);
+          if (book.validated.googleBooksUrl)
+            console.log(`   🔗 Google Books: ${book.validated.googleBooksUrl}`);
         }
       });
-      
-      const validatedCount = validatedBooks.filter(b => b.validationSource !== 'none').length;
-      console.log(`\n🎯 Summary: ${validatedCount}/${validatedBooks.length} books validated`);
+
+      const validatedCount = validatedBooks.filter(
+        (b) => b.validationSource !== "none",
+      ).length;
+      console.log(
+        `\n🎯 Summary: ${validatedCount}/${validatedBooks.length} books validated`,
+      );
     } else {
       candidates.candidates.forEach((candidate, i) => {
-        console.log(`${i + 1}. "${candidate.title || 'Unknown Title'}" by ${candidate.authors?.join(', ') || 'Unknown'} (${candidate.confidence.toFixed(2)})`);
+        console.log(
+          `${i + 1}. "${candidate.title || "Unknown Title"}" by ${candidate.authors?.join(", ") || "Unknown"} (${candidate.confidence.toFixed(2)})`,
+        );
       });
     }
-    
-    console.log(`\n💾 Complete! Results saved to: s3://${BUCKET_NAME}/${sessionDir}/`);
-    
+
+    console.log(
+      `\n💾 Complete! Results saved to: s3://${BUCKET_NAME}/${sessionDir}/`,
+    );
   } catch (error) {
     console.error("❌ Extraction failed:", error);
     process.exit(1);
@@ -1124,21 +1161,22 @@ async function extractCommand(imagePath: string, options: any) {
 }
 
 async function validateCommand(options: any) {
-  const provider = options.provider || 'openlibrary';
+  const provider = options.provider || "openlibrary";
   console.log(`🧪 Testing ${provider} validation...\n`);
-  
-  if (provider !== 'openlibrary' && provider !== 'googlebooks') {
+
+  if (provider !== "openlibrary" && provider !== "googlebooks") {
     console.error("❌ Supported providers: 'openlibrary', 'googlebooks'");
     process.exit(1);
   }
-  
-  const providerParam = provider === 'openlibrary' ? 'open_library' : 'google_books';
+
+  const providerParam =
+    provider === "openlibrary" ? "open_library" : "google_books";
   await testValidation(providerParam);
 }
 
 async function testCommand(imagePath: string, options: any) {
   console.log(`🧪 Running comprehensive tests on: ${imagePath}`);
-  
+
   const imageName = path.basename(imagePath, path.extname(imagePath));
   const timestamp = Date.now();
   const sessionDir = `${imageName}-${timestamp}`;
@@ -1146,7 +1184,7 @@ async function testCommand(imagePath: string, options: any) {
   try {
     await ensureBucketExists();
     const s3Key = await uploadImage(imagePath, sessionDir);
-    
+
     // Parse ground truth if provided
     let groundTruth: GroundTruthBook[] | undefined;
     if (options.groundTruth) {
@@ -1157,14 +1195,15 @@ async function testCommand(imagePath: string, options: any) {
         console.warn(`⚠️ Could not parse ground truth JSON: ${error}`);
       }
     }
-    
+
     const testResults = await runTextractTests(s3Key, groundTruth);
     printTestResults(testResults, groundTruth);
     await saveTestResults(sessionDir, testResults, groundTruth);
 
-    console.log(`\n🎉 Testing complete! Results saved in s3://${BUCKET_NAME}/${sessionDir}/`);
+    console.log(
+      `\n🎉 Testing complete! Results saved in s3://${BUCKET_NAME}/${sessionDir}/`,
+    );
     console.log(`📄 Download test-summary.txt for detailed report`);
-    
   } catch (error) {
     console.error("❌ Testing failed:", error);
     process.exit(1);
@@ -1173,36 +1212,48 @@ async function testCommand(imagePath: string, options: any) {
 
 async function main() {
   const program = new Command();
-  
+
   program
-    .name('bookimg')
-    .description('Extract book titles and authors from bookshelf photos using AWS Textract, Bedrock, and Open Library')
-    .version('1.0.0');
-  
+    .name("bookimg")
+    .description(
+      "Extract book titles and authors from bookshelf photos using AWS Textract, Bedrock, and Open Library",
+    )
+    .version("1.0.0");
+
   program
-    .command('extract')
-    .description('Extract book information from an image')
-    .argument('<image-path>', 'Path to bookshelf image')
-    .option('-v, --validate <provider>', 'Validate results with provider (openlibrary, googlebooks)')
+    .command("extract")
+    .description("Extract book information from an image")
+    .argument("<image-path>", "Path to bookshelf image")
+    .option(
+      "-v, --validate <provider>",
+      "Validate results with provider (openlibrary, googlebooks)",
+    )
     .action(extractCommand);
-  
+
   program
-    .command('validate')
-    .description('Test book validation in isolation')
-    .option('-p, --provider <provider>', 'Validation provider to test (openlibrary, googlebooks)', 'openlibrary')
+    .command("validate")
+    .description("Test book validation in isolation")
+    .option(
+      "-p, --provider <provider>",
+      "Validation provider to test (openlibrary, googlebooks)",
+      "openlibrary",
+    )
     .action(validateCommand);
-  
+
   program
-    .command('test')
-    .description('Run comprehensive Textract API tests')
-    .argument('<image-path>', 'Path to bookshelf image')
-    .option('-g, --ground-truth <json>', 'Ground truth JSON for accuracy testing')
+    .command("test")
+    .description("Run comprehensive Textract API tests")
+    .argument("<image-path>", "Path to bookshelf image")
+    .option(
+      "-g, --ground-truth <json>",
+      "Ground truth JSON for accuracy testing",
+    )
     .action(testCommand);
-  
+
   await program.parseAsync();
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error("❌ Unexpected error:", error);
   process.exit(1);
 });

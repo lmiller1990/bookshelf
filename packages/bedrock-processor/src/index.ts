@@ -135,7 +135,7 @@ export const handler = async (event: SQSEvent) => {
 
       // Call Bedrock
       const response = await bedrockClient.send(
-        new InvokeModelCommand(bedrockRequest)
+        new InvokeModelCommand(bedrockRequest),
       );
 
       if (!response.body) {
@@ -170,7 +170,7 @@ export const handler = async (event: SQSEvent) => {
           Key: `${jobId}/candidates.json`,
           Body: JSON.stringify({ candidates }, null, 2),
           ContentType: "application/json",
-        })
+        }),
       );
 
       // Send to validation queue
@@ -184,7 +184,7 @@ export const handler = async (event: SQSEvent) => {
         new SendMessageCommand({
           QueueUrl: getValidationQueueUrl(),
           MessageBody: JSON.stringify(validationMessage),
-        })
+        }),
       );
 
       console.log(`Sent to validation queue for job: ${jobId}`);
@@ -274,7 +274,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
     // Call Bedrock
     const response = await bedrockClient.send(
-      new InvokeModelCommand(bedrockRequest)
+      new InvokeModelCommand(bedrockRequest),
     );
 
     if (!response.body) {
