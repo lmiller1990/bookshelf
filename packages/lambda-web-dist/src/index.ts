@@ -25,7 +25,13 @@ let indexHtml: string | null = null;
 async function getIndexHtml(): Promise<string> {
   if (!indexHtml) {
     const htmlPath = join(__dirname, "..", "views", "index.html");
-    indexHtml = await readFile(htmlPath, "utf-8");
+    let htmlContent = await readFile(htmlPath, "utf-8");
+    
+    // Replace placeholder with actual WebSocket URL from environment
+    const websocketUrl = process.env.WEBSOCKET_API_URL || "wss://localhost:3000";
+    htmlContent = htmlContent.replace("{{WEBSOCKET_API_URL}}", websocketUrl);
+    
+    indexHtml = htmlContent;
   }
   return indexHtml;
 }

@@ -422,6 +422,10 @@ module "web_lambda" {
   execution_role_arn = aws_iam_role.lambda_execution_role.arn
   environment       = var.environment
   
+  environment_variables = {
+    WEBSOCKET_API_URL = "wss://${aws_apigatewayv2_api.websocket_api.id}.execute-api.${data.aws_region.current.name}.amazonaws.com/${aws_apigatewayv2_stage.websocket_stage.name}"
+  }
+  
   tags = {
     Environment = var.environment
     Project     = "BookImg"
