@@ -8,14 +8,15 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "build:textract": "npm run build -w packages/textract-processor",
-    "build:lambda-web": "npm run build -w packages/lambda-web-dist",
-    "deploy:textract": "npm run build:textract && terraform apply -target=aws_lambda_function.textract_processor",
-    "deploy:lambda-web": "npm run build:lambda-web && terraform apply -target=aws_lambda_function.web_api",
-    "test": "npm test --workspaces",
+    "build": "pnpm run build --workspaces",
+    "build:textract": "pnpm run build -w packages/textract-processor",
+    "build:lambda-web": "pnpm run build -w packages/lambda-web-dist",
+    "deploy:textract": "pnpm run build:textract && terraform apply -target=aws_lambda_function.textract_processor",
+    "deploy:lambda-web": "pnpm run build:lambda-web && terraform apply -target=aws_lambda_function.web_api",
+    "lint": "prettier . --write",
+    "test": "pnpm test --workspaces",
     "clean": "rm -rf packages/*/dist && rm -rf dist",
-    "dev": "npm run build && node packages/cli/dist/index.js"
+    "dev": "pnpm run build && node packages/cli/dist/index.js"
   },
   "keywords": [
     "aws",
