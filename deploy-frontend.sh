@@ -54,7 +54,14 @@ echo "✅ Build completed"
 
 # Deploy to S3
 echo "📤 Uploading to S3..."
-aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete --profile bookimg-app
+
+# Upload all files except index.html with default caching
+aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete --profile bookimg-app --exclude "index.html"
+
+# Upload index.html with no-cache headers
+aws s3 cp dist/index.html s3://$FRONTEND_BUCKET/index.html --profile bookimg-app \
+  --cache-control "no-cache, no-store, must-revalidate" \
+  --metadata-directive REPLACE
 
 if [ $? -eq 0 ]; then
     echo "✅ S3 upload completed"

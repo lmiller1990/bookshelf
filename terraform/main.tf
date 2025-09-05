@@ -798,8 +798,9 @@ resource "aws_cloudfront_distribution" "frontend_distribution" {
   comment             = "BookImg frontend distribution"
   default_root_object = "index.html"
 
+  # Default behavior for static assets (CSS, JS, images) - cache aggressively
   default_cache_behavior {
-    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "S3-${aws_s3_bucket.bookimg_frontend.id}"
 
@@ -812,22 +813,21 @@ resource "aws_cloudfront_distribution" "frontend_distribution" {
 
     viewer_protocol_policy = "redirect-to-https"
     min_ttl                = 0
-    default_ttl            = 3600
-    max_ttl                = 86400
+    default_ttl            = 31536000  # 1 year
+    max_ttl                = 31536000  # 1 year
 
     compress = true
   }
 
-  # Cache behavior for API calls (no caching)
+  # Never cache index.html - always fresh
   ordered_cache_behavior {
-    path_pattern     = "/api/*"
-    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    path_pattern     = "index.html"
+    allowed_methods  = ["GET", "HEAD"]
     cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "API-Gateway"
+    target_origin_id = "S3-${aws_s3_bucket.bookimg_frontend.id}"
 
     forwarded_values {
-      query_string = true
-      headers      = ["Authorization", "Content-Type"]
+      query_string = false
       cookies {
         forward = "none"
       }
@@ -835,8 +835,10 @@ resource "aws_cloudfront_distribution" "frontend_distribution" {
 
     viewer_protocol_policy = "redirect-to-https"
     min_ttl                = 0
-    default_ttl            = 0
-    max_ttl                = 0
+    default_ttl            = 0      # Never cache
+    max_ttl                = 0      # Never cache
+
+    compress = true
   }
 
   restrictions {
