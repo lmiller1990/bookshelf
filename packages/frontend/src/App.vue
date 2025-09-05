@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { ValidatedBook } from "@packages/shared/src/types.js";
-import BookResults from "./components/BookResults.vue";
+import Book from "./components/Book.vue";
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const status = ref<string>("");
@@ -402,10 +402,15 @@ const handleDrop = (event: DragEvent) => {
 
     <div v-if="status" :class="`status ${statusType}`" v-html="status.replace(/\n/g, '<br>')"></div>
     
-    <BookResults 
-      :books="books" 
-      :totalCandidates="books.length" 
-      :validatedBooks="books.filter(book => book.status === 'validated').length" 
-    />
+    <div v-if="books && books.length > 0">
+      <h3>📚 Books Found:</h3>
+      <ul>
+        <Book v-for="book in books" :key="book.title" :book="book" />
+      </ul>
+      <p>
+        🎉 Processing Complete!
+        Found {{ books.length }} candidates, validated {{ books.filter(book => book.status === 'validated').length }} books
+      </p>
+    </div>
   </div>
 </template>
