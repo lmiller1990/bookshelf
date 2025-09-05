@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { ValidatedBook } from "@packages/shared/src/types.js"
+import type { ValidatedBook } from "@packages/shared/src/types.js";
+import BookResults from "./components/BookResults.vue";
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const status = ref<string>("");
@@ -330,27 +331,7 @@ const connectWebSocket = (jobId: string): Promise<void> => {
           console.log("processingComplete", data)
           handleBookedProcessed(data.results.books)
           const results = data.results;
-          if (results && results.books && results.books.length > 0) {
-            let booksHtml = "<h3>📚 Books Found:</h3><ul>";
-            results.books.forEach((book: any) => {
-              const title = book.validation?.title || book.title;
-              const authors =
-                book.validation?.authors?.join(", ") || book.author;
-              booksHtml += `<li><strong>${title}</strong> by ${authors}`;
-              if (book.validation?.isbn) {
-                booksHtml += ` (ISBN: ${book.validation.isbn})`;
-              }
-              booksHtml += "</li>";
-            });
-            booksHtml += "</ul>";
-
-            setStatus(
-              `🎉 Processing Complete!\nFound ${results.totalCandidates} candidates, validated ${results.validatedBooks} books\n${booksHtml}`,
-              "success",
-            );
-          } else {
-            setStatus("Processing complete - no books found in image", "info");
-          }
+          setStatus("Processing complete!", "success");
           websocket?.close();
           isUploading.value = false;
         }
@@ -420,5 +401,11 @@ const handleDrop = (event: DragEvent) => {
     </div>
 
     <div v-if="status" :class="`status ${statusType}`" v-html="status.replace(/\n/g, '<br>')"></div>
+    
+    <BookResults 
+      :books="books" 
+      :totalCandidates="books.length" 
+      :validatedBooks="books.filter(book => book.status === 'validated').length" 
+    />
   </div>
 </template>
