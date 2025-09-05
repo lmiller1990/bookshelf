@@ -33,8 +33,10 @@ const handleFileUpload = async () => {
     setStatus("No file selected", "error");
     return;
   }
+  console.log(`Uploading ${file}`);
 
   isUploading.value = true;
+  console.log(`Getting upload URL...`);
   setStatus("Getting upload URL...", "info");
 
   try {
@@ -48,6 +50,7 @@ const handleFileUpload = async () => {
     }
 
     const signedUrl = await response.text();
+    console.log(`URL is => ${signedUrl}`);
 
     // Extract jobId from signed URL
     const urlParts = new URL(signedUrl);
@@ -57,9 +60,12 @@ const handleFileUpload = async () => {
     setStatus("Uploading to AWS S3...", "info");
 
     // Connect to WebSocket before uploading
+    console.log("Connecting to websocket");
     await connectWebSocket(jobId);
+    console.log("OK connected!");
 
     // Upload to S3
+    console.log("Upload time");
     const uploadResponse = await fetch(signedUrl, {
       method: "PUT",
       body: file,
@@ -69,6 +75,7 @@ const handleFileUpload = async () => {
     });
 
     if (uploadResponse.ok) {
+      console.log("we did it!");
       setStatus(
         `Upload successful! Processing started...\nJob ID: ${jobId}`,
         "info",
