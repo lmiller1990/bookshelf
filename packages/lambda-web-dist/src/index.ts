@@ -14,10 +14,10 @@ interface UploadUrlQuery {
 }
 
 // Configure CORS for cross-origin requests from Vue app
-app.register(import('@fastify/cors'), {
+app.register(import("@fastify/cors"), {
   origin: true, // Allow all origins in development
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 });
 
 // Generate pre-signed URL for S3 upload

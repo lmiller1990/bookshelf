@@ -1,181 +1,196 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref } from "vue";
 
-const fileInput = ref<HTMLInputElement | null>(null)
-const status = ref<string>('')
-const statusType = ref<'info' | 'success' | 'error'>('info')
-const isUploading = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null);
+const status = ref<string>("");
+const statusType = ref<"info" | "success" | "error">("info");
+const isUploading = ref(false);
 
 // Configuration - these will be set via environment variables
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://1fd9v08g3m.execute-api.ap-southeast-2.amazonaws.com/UAT'
-const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL || 'wss://v4sgq1aoqj.execute-api.ap-southeast-2.amazonaws.com/UAT'
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://1fd9v08g3m.execute-api.ap-southeast-2.amazonaws.com/UAT";
+const WEBSOCKET_URL =
+  import.meta.env.VITE_WEBSOCKET_URL ||
+  "wss://v4sgq1aoqj.execute-api.ap-southeast-2.amazonaws.com/UAT";
 
-let websocket: WebSocket | null = null
+let websocket: WebSocket | null = null;
 
-const setStatus = (message: string, type: 'info' | 'success' | 'error' = 'info') => {
-  status.value = message
-  statusType.value = type
-}
+const setStatus = (
+  message: string,
+  type: "info" | "success" | "error" = "info",
+) => {
+  status.value = message;
+  statusType.value = type;
+};
 
 const handleFileUpload = async () => {
-  const file = fileInput.value?.files?.[0]
+  const file = fileInput.value?.files?.[0];
   if (!file) {
-    setStatus('No file selected', 'error')
-    return
+    setStatus("No file selected", "error");
+    return;
   }
 
-  isUploading.value = true
-  setStatus('Getting upload URL...', 'info')
+  isUploading.value = true;
+  setStatus("Getting upload URL...", "info");
 
   try {
     // Get pre-signed URL
     const response = await fetch(
-      `${API_BASE_URL}/upload-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`
-    )
+      `${API_BASE_URL}/upload-url?filename=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`,
+    );
 
     if (!response.ok) {
-      throw new Error('Failed to get upload URL')
+      throw new Error("Failed to get upload URL");
     }
 
-    const signedUrl = await response.text()
+    const signedUrl = await response.text();
 
     // Extract jobId from signed URL
-    const urlParts = new URL(signedUrl)
-    const s3Key = urlParts.pathname.substring(1) // Remove leading slash
-    const jobId = s3Key.split('/')[0] // Get directory name as jobId
+    const urlParts = new URL(signedUrl);
+    const s3Key = urlParts.pathname.substring(1); // Remove leading slash
+    const jobId = s3Key.split("/")[0]; // Get directory name as jobId
 
-    setStatus('Uploading to AWS S3...', 'info')
+    setStatus("Uploading to AWS S3...", "info");
 
     // Connect to WebSocket before uploading
-    await connectWebSocket(jobId)
+    await connectWebSocket(jobId);
 
     // Upload to S3
     const uploadResponse = await fetch(signedUrl, {
-      method: 'PUT',
+      method: "PUT",
       body: file,
       headers: {
-        'Content-Type': file.type,
+        "Content-Type": file.type,
       },
-    })
+    });
 
     if (uploadResponse.ok) {
-      setStatus(`Upload successful! Processing started...\nJob ID: ${jobId}`, 'info')
+      setStatus(
+        `Upload successful! Processing started...\nJob ID: ${jobId}`,
+        "info",
+      );
     } else {
-      setStatus('Upload failed', 'error')
-      websocket?.close()
-      isUploading.value = false
+      setStatus("Upload failed", "error");
+      websocket?.close();
+      isUploading.value = false;
     }
   } catch (error) {
-    setStatus(`Upload error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error')
-    websocket?.close()
-    isUploading.value = false
+    setStatus(
+      `Upload error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      "error",
+    );
+    websocket?.close();
+    isUploading.value = false;
   }
-}
+};
 
 const connectWebSocket = (jobId: string): Promise<void> => {
   return new Promise((resolve, reject) => {
-    websocket = new WebSocket(WEBSOCKET_URL)
+    websocket = new WebSocket(WEBSOCKET_URL);
 
     websocket.onopen = () => {
-      console.log('WebSocket connected')
+      console.log("WebSocket connected");
       // Subscribe to job notifications
       websocket?.send(
         JSON.stringify({
-          action: 'subscribe',
+          action: "subscribe",
           jobId: jobId,
-        })
-      )
-      resolve()
-    }
+        }),
+      );
+      resolve();
+    };
 
     websocket.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data)
-        console.log('WebSocket message:', data)
+        const data = JSON.parse(event.data);
+        console.log("WebSocket message:", data);
 
-        if (data.type === 'subscribed') {
-          setStatus('🔗 Connected to real-time updates', 'info')
-        } else if (data.type === 'processingComplete') {
-          const results = data.results
+        if (data.type === "subscribed") {
+          setStatus("🔗 Connected to real-time updates", "info");
+        } else if (data.type === "processingComplete") {
+          const results = data.results;
           if (results && results.books && results.books.length > 0) {
-            let booksHtml = '<h3>📚 Books Found:</h3><ul>'
+            let booksHtml = "<h3>📚 Books Found:</h3><ul>";
             results.books.forEach((book: any) => {
-              const title = book.validation?.title || book.title
-              const authors = book.validation?.authors?.join(', ') || book.author
-              booksHtml += `<li><strong>${title}</strong> by ${authors}`
+              const title = book.validation?.title || book.title;
+              const authors =
+                book.validation?.authors?.join(", ") || book.author;
+              booksHtml += `<li><strong>${title}</strong> by ${authors}`;
               if (book.validation?.isbn) {
-                booksHtml += ` (ISBN: ${book.validation.isbn})`
+                booksHtml += ` (ISBN: ${book.validation.isbn})`;
               }
-              booksHtml += '</li>'
-            })
-            booksHtml += '</ul>'
+              booksHtml += "</li>";
+            });
+            booksHtml += "</ul>";
 
             setStatus(
               `🎉 Processing Complete!\nFound ${results.totalCandidates} candidates, validated ${results.validatedBooks} books\n${booksHtml}`,
-              'success'
-            )
+              "success",
+            );
           } else {
-            setStatus('Processing complete - no books found in image', 'info')
+            setStatus("Processing complete - no books found in image", "info");
           }
-          websocket?.close()
-          isUploading.value = false
+          websocket?.close();
+          isUploading.value = false;
         }
       } catch (e) {
-        console.error('Error parsing WebSocket message:', e)
+        console.error("Error parsing WebSocket message:", e);
       }
-    }
+    };
 
     websocket.onerror = (error) => {
-      console.error('WebSocket error:', error)
-      reject(error)
-    }
+      console.error("WebSocket error:", error);
+      reject(error);
+    };
 
     websocket.onclose = () => {
-      console.log('WebSocket disconnected')
-      isUploading.value = false
-    }
-  })
-}
+      console.log("WebSocket disconnected");
+      isUploading.value = false;
+    };
+  });
+};
 
 const handleFileSelect = (event: Event) => {
-  const target = event.target as HTMLInputElement
+  const target = event.target as HTMLInputElement;
   if (target.files && target.files[0]) {
-    status.value = ''
+    status.value = "";
   }
-}
+};
 
 const handleDragOver = (event: DragEvent) => {
-  event.preventDefault()
-  const uploadArea = event.currentTarget as HTMLElement
-  uploadArea.classList.add('dragover')
-}
+  event.preventDefault();
+  const uploadArea = event.currentTarget as HTMLElement;
+  uploadArea.classList.add("dragover");
+};
 
 const handleDragLeave = (event: DragEvent) => {
-  const uploadArea = event.currentTarget as HTMLElement
-  uploadArea.classList.remove('dragover')
-}
+  const uploadArea = event.currentTarget as HTMLElement;
+  uploadArea.classList.remove("dragover");
+};
 
 const handleDrop = (event: DragEvent) => {
-  event.preventDefault()
-  const uploadArea = event.currentTarget as HTMLElement
-  uploadArea.classList.remove('dragover')
-  
-  const files = event.dataTransfer?.files
+  event.preventDefault();
+  const uploadArea = event.currentTarget as HTMLElement;
+  uploadArea.classList.remove("dragover");
+
+  const files = event.dataTransfer?.files;
   if (files && files.length > 0 && fileInput.value) {
-    fileInput.value.files = files
-    status.value = ''
+    fileInput.value.files = files;
+    status.value = "";
   }
-}
+};
 </script>
 
 <template>
   <div class="app-container">
     <h1>BookImg - AI Book Recognition</h1>
     <p>
-      Upload a photo of your bookshelf to extract book titles and authors using AI.
+      Upload a photo of your bookshelf to extract book titles and authors using
+      AI.
     </p>
 
-    <div 
+    <div
       class="upload-area"
       :class="{ dragover: false }"
       @dragover="handleDragOver"
@@ -190,17 +205,21 @@ const handleDrop = (event: DragEvent) => {
         :disabled="isUploading"
       />
       <br /><br />
-      <button 
-        type="button" 
+      <button
+        type="button"
         @click="handleFileUpload"
         :disabled="isUploading"
         class="upload-btn"
       >
-        {{ isUploading ? 'Uploading...' : 'Upload Image' }}
+        {{ isUploading ? "Uploading..." : "Upload Image" }}
       </button>
     </div>
 
-    <div v-if="status" :class="`status ${statusType}`" v-html="status.replace(/\n/g, '<br>')"></div>
+    <div
+      v-if="status"
+      :class="`status ${statusType}`"
+      v-html="status.replace(/\n/g, '<br>')"
+    ></div>
   </div>
 </template>
 
