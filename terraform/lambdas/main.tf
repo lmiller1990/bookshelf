@@ -25,6 +25,13 @@ resource "null_resource" "build_web_lambda" {
 
     echo "Building ${var.function_name}..."
     cd "${local.module_dir}/.."
+    
+    # Build shared package first if it exists
+    if [ -d "packages/shared" ]; then
+      echo "Building shared package..."
+      pnpm --filter="@packages/shared" build
+    fi
+    
     pnpm --filter="${var.package_name}" build
 
     echo "Deploying to $DEPLOY_DIR..."
