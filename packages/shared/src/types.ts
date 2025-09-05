@@ -17,6 +17,7 @@ export interface BedrockMessage extends TextractMessage {
 
 export interface BookCandidate {
   title: string;
+  subtitle: string | null;
   author: string;
   confidence: number;
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
+import type { ValidatedBook } from "@packages/shared/src/types.js"
 
 const fileInput = ref<HTMLInputElement | null>(null);
 const status = ref<string>("");
@@ -26,6 +27,209 @@ const setStatus = (
   status.value = message;
   statusType.value = type;
 };
+
+const testBooks: ValidatedBook[] = [
+  {
+    "title": "TRANSFORMER",
+    "author": "NICK LANE",
+    "subtitle": null,
+    "confidence": 0.9,
+    "validation": {
+      "validated": true,
+      "title": "Transformer",
+      "authors": [
+        "Nick Lane"
+      ],
+      "isbn": "9781782834502",
+      "publishedDate": "2022-05-19",
+      "publisher": "Profile Books",
+      "thumbnail": "http://books.google.com/books/content?id=Tf-sDwAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "Numbers Don't Lie",
+    "author": "Vaclav Smil",
+    "subtitle": null,
+    "confidence": 0.8,
+    "validation": {
+      "validated": true,
+      "title": "Numbers Don't Lie",
+      "authors": [
+        "Vaclav Smil"
+      ],
+      "isbn": "9780241989708",
+      "publishedDate": "2020-10-01",
+      "publisher": "Penguin UK",
+      "thumbnail": "http://books.google.com/books/content?id=e3_NDwAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "THE POSSIBILITY OF LIFE",
+    "author": "JAIME GREENE",
+    "subtitle": null,
+    "confidence": 0.9,
+    "validation": {
+      "validated": true,
+      "title": "Luke-Acts Improv: Biblical Narratives That Get You Into the Act",
+      "authors": [
+        "Jamie Greene"
+      ],
+      "isbn": "9780979907623",
+      "publishedDate": "2010-12",
+      "publisher": "Harmon Press",
+      "thumbnail": "http://books.google.com/books/content?id=VsXdekJG-w8C&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "LIFE'S ENGINES",
+    "author": "PAUL FALKOWSKI",
+    "subtitle": null,
+    "confidence": 0.8,
+    "validation": {
+      "validated": true,
+      "title": "Life's Engines",
+      "authors": [
+        "Paul G. Falkowski"
+      ],
+      "isbn": "9780691247687",
+      "publishedDate": "2023-06-13",
+      "publisher": "Princeton University Press",
+      "thumbnail": "http://books.google.com/books/content?id=pTWiEAAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "FOLLOW YOUR GUT",
+    "author": "Stinson Hutchings",
+    "subtitle": "The Remarkable Science of Stomach Microbes",
+    "confidence": 0.9,
+    "validation": {
+      "validated": true,
+      "title": "Follow Your Gut",
+      "authors": [
+        "Ailsa Wild",
+        "Briony Barr",
+        "Gregory Crocetti"
+      ],
+      "isbn": "9781761385735",
+      "publishedDate": "2024-07-30",
+      "publisher": "Scribe Publications",
+      "thumbnail": "http://books.google.com/books/content?id=tSHzEAAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "The Bitcoin Standard",
+    "author": "SAIFEDEAN AMMOUS",
+    "subtitle": null,
+    "confidence": 0.9,
+    "validation": {
+      "validated": true,
+      "title": "Summary of the Bitcoin Standard: The Decentralized Alternative to Central Banking by Saifedean Ammous",
+      "authors": [
+        "Dennis Braun"
+      ],
+      "isbn": "1794059768",
+      "publishedDate": "2019-01-13",
+      "publisher": "Independently Published",
+      "thumbnail": "http://books.google.com/books/content?id=UgUywQEACAAJ&printsec=frontcover&img=1&zoom=1&source=gbs_api"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "50 Mathematical Ideas You Really Need to Know",
+    "author": "Tony Crilly",
+    "subtitle": null,
+    "confidence": 0.9,
+    "validation": {
+      "validated": true,
+      "title": "50 Maths Ideas You Really Need to Know",
+      "authors": [
+        "Tony Crilly"
+      ],
+      "isbn": "1529425158",
+      "publishedDate": "2022-08-18",
+      "publisher": "50 Ideas You Really Need to Know series",
+      "thumbnail": "http://books.google.com/books/content?id=eEzezgEACAAJ&printsec=frontcover&img=1&zoom=1&source=gbs_api"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "FROM BACTERIA TO BACH AND BACK",
+    "author": "DANIEL C. DENNETT",
+    "subtitle": null,
+    "confidence": 0.9,
+    "validation": {
+      "validated": true,
+      "title": "From Bacteria to Bach and Back",
+      "authors": [
+        "Daniel C. Dennett"
+      ],
+      "isbn": "9780141978055",
+      "publishedDate": "2017-02-21",
+      "publisher": "Penguin UK",
+      "thumbnail": "http://books.google.com/books/content?id=XuJoDQAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "THE GENETIC LOTTERY",
+    "author": "KATHRYN PAIGE HARDEN",
+    "subtitle": "Why DNA Matters for Social Equality",
+    "confidence": 0.9,
+    "validation": {
+      "validated": true,
+      "title": "The Genetic Lottery",
+      "authors": [
+        "Kathryn Paige Harden"
+      ],
+      "isbn": "0691234779",
+      "publishedDate": "2021"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "Rebel Cell",
+    "author": "Kat Arney",
+    "subtitle": "Cancer, Evolution and the Science of Life",
+    "confidence": 0.9,
+    "validation": {
+      "validated": true,
+      "title": "Rebel Cell",
+      "authors": [
+        "Kat Arney"
+      ],
+      "isbn": "9781474609326",
+      "publishedDate": "2020-08-06",
+      "publisher": "Hachette UK",
+      "thumbnail": "http://books.google.com/books/content?id=yDmcDwAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+    },
+    "status": "validated"
+  },
+  {
+    "title": "HOW TO SPEND A TRILLION DOLLARS",
+    "author": "ROWAN HOOPER",
+    "subtitle": null,
+    "confidence": 0.9,
+    "validation": {
+      "validated": true,
+      "title": "How to Spend a Trillion Dollars",
+      "authors": [
+        "Rowan Hooper"
+      ],
+      "isbn": "9781782836100",
+      "publishedDate": "2021-01-14",
+      "publisher": "Profile Books",
+      "thumbnail": "http://books.google.com/books/content?id=RHTyDwAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+    },
+    "status": "validated"
+  }
+]
+
+const books = ref<ValidatedBook[]>(testBooks)
 
 const handleFileUpload = async () => {
   const file = fileInput.value?.files?.[0];
@@ -95,6 +299,10 @@ const handleFileUpload = async () => {
   }
 };
 
+function handleBookedProcessed(_books: ValidatedBook[]) {
+  books.value = _books
+}
+
 const connectWebSocket = (jobId: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     websocket = new WebSocket(WEBSOCKET_URL);
@@ -119,6 +327,8 @@ const connectWebSocket = (jobId: string): Promise<void> => {
         if (data.type === "subscribed") {
           setStatus("🔗 Connected to real-time updates", "info");
         } else if (data.type === "processingComplete") {
+          console.log("processingComplete", data)
+          handleBookedProcessed(data.results.books)
           const results = data.results;
           if (results && results.books && results.books.length > 0) {
             let booksHtml = "<h3>📚 Books Found:</h3><ul>";
@@ -200,112 +410,15 @@ const handleDrop = (event: DragEvent) => {
       AI.
     </p>
 
-    <div
-      class="upload-area"
-      :class="{ dragover: false }"
-      @dragover="handleDragOver"
-      @dragleave="handleDragLeave"
-      @drop="handleDrop"
-    >
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/*"
-        @change="handleFileSelect"
-        :disabled="isUploading"
-      />
+    <div class="upload-area" :class="{ dragover: false }" @dragover="handleDragOver" @dragleave="handleDragLeave"
+      @drop="handleDrop">
+      <input ref="fileInput" type="file" accept="image/*" @change="handleFileSelect" :disabled="isUploading" />
       <br /><br />
-      <button
-        type="button"
-        @click="handleFileUpload"
-        :disabled="isUploading"
-        class="upload-btn"
-      >
+      <button type="button" @click="handleFileUpload" :disabled="isUploading" class="upload-btn">
         {{ isUploading ? "Uploading..." : "Upload Image" }}
       </button>
     </div>
 
-    <div
-      v-if="status"
-      :class="`status ${statusType}`"
-      v-html="status.replace(/\n/g, '<br>')"
-    ></div>
+    <div v-if="status" :class="`status ${statusType}`" v-html="status.replace(/\n/g, '<br>')"></div>
   </div>
 </template>
-
-<style scoped>
-.app-container {
-  font-family: Arial, sans-serif;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
-.upload-area {
-  border: 2px dashed #ccc;
-  padding: 40px;
-  text-align: center;
-  margin: 20px 0;
-  transition: all 0.3s ease;
-}
-
-.upload-area.dragover {
-  border-color: #007bff;
-  background-color: #f8f9fa;
-}
-
-.upload-btn {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  cursor: pointer;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
-.upload-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
-.upload-btn:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.status {
-  margin: 20px 0;
-  padding: 10px;
-  border-radius: 4px;
-  white-space: pre-line;
-}
-
-.status.success {
-  background: #d4edda;
-  border: 1px solid #c3e6cb;
-  color: #155724;
-}
-
-.status.error {
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
-}
-
-.status.info {
-  background: #cce7ff;
-  border: 1px solid #99d6ff;
-  color: #004085;
-}
-
-h1 {
-  color: #333;
-  text-align: center;
-}
-
-p {
-  text-align: center;
-  color: #666;
-  font-size: 16px;
-}
-</style>
