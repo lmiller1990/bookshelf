@@ -42,8 +42,8 @@ if [ ! -f "package.json" ]; then
 fi
 
 # Install dependencies and build
-npm install
-npm run build
+pnpm install
+pnpm run build
 
 if [ ! -d "dist" ]; then
     echo "❌ Error: Build failed - dist directory not created"
@@ -56,10 +56,10 @@ echo "✅ Build completed"
 echo "📤 Uploading to S3..."
 
 # Upload all files except index.html with default caching
-aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete --profile bookimg-app --exclude "index.html"
+aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete --profile bookimg-deployer --exclude "index.html"
 
 # Upload index.html with no-cache headers
-aws s3 cp dist/index.html s3://$FRONTEND_BUCKET/index.html --profile bookimg-app \
+aws s3 cp dist/index.html s3://$FRONTEND_BUCKET/index.html --profile bookimg-deployer \
   --cache-control "no-cache, no-store, must-revalidate" \
   --metadata-directive REPLACE
 
@@ -72,7 +72,7 @@ fi
 
 # Invalidate CloudFront cache
 echo "🔄 Invalidating CloudFront cache..."
-INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths '/*' --profile bookimg-app --query 'Invalidation.Id' --output text)
+INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths '/*' --profile bookimg-deployer --query 'Invalidation.Id' --output text)
 
 if [ $? -eq 0 ]; then
     echo "✅ CloudFront invalidation created: $INVALIDATION_ID"
