@@ -6,13 +6,16 @@ const status = ref<string>("");
 const statusType = ref<"info" | "success" | "error">("info");
 const isUploading = ref(false);
 
-// Configuration - these will be set via environment variables
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  "https://1fd9v08g3m.execute-api.ap-southeast-2.amazonaws.com/UAT";
-const WEBSOCKET_URL =
-  import.meta.env.VITE_WEBSOCKET_URL ||
-  "wss://v4sgq1aoqj.execute-api.ap-southeast-2.amazonaws.com/UAT";
+// Configuration - loaded from environment variables
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL;
+
+if (!API_BASE_URL || !WEBSOCKET_URL) {
+  console.error("Missing environment variables:", {
+    VITE_API_BASE_URL: API_BASE_URL,
+    VITE_WEBSOCKET_URL: WEBSOCKET_URL,
+  });
+}
 
 let websocket: WebSocket | null = null;
 
