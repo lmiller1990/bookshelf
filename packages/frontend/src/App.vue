@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { ref } from "vue";
 import type { ValidatedBook } from "@packages/shared/src/types.js";
 import Book from "./components/Book.vue";
 import Hero from "./components/Hero.vue";
@@ -215,7 +215,7 @@ const testBooks: ValidatedBook[] = [
   },
 ];
 
-const books = ref<ValidatedBook[]>([]); //testBooks)
+const books = ref<ValidatedBook[]>(testBooks)
 const imageSelected = ref(false);
 
 const handleFileUpload = async () => {
@@ -330,7 +330,6 @@ const connectWebSocket = (jobId: string): Promise<void> => {
         } else if (data.type === "processingComplete") {
           console.log("processingComplete", data);
           handleBookedProcessed(data.results.books);
-          const results = data.results;
           status.value = "Processing complete!";
           statusType.value = "success";
           console.log("Processing complete!", "success");
@@ -446,10 +445,10 @@ const handleFileSelect = (event: Event) => {
 
       <div class="m-2">
         <div
-          class="text-sm grid grid-cols-1 bg-grey-400 gap-[2px] auto-rows-max"
+          class="text-sm grid grid-cols-1 bg-grey-400 gap-[3px] auto-rows-max"
         >
           <div
-            class="p-2 bg-white rounded-sm"
+            class="p-2 bg-base-200 rounded-sm"
             v-for="book in books"
             :key="book.title"
           >
