@@ -57,7 +57,7 @@ export const handler = async (event: SQSEvent) => {
         receivedData: parsedBody,
       });
       throw new Error(
-        `Invalid SQS message format: ${validationResult.error.message}`
+        `Invalid SQS message format: ${validationResult.error.message}`,
       );
     }
 
@@ -80,7 +80,7 @@ export const handler = async (event: SQSEvent) => {
           TopicArn: getTextractSNSTopicArn(),
           Subject: `Textract Processing Started - Job ${jobId}`,
           Message: JSON.stringify(startMessage),
-        })
+        }),
       );
 
       console.log(`Published textract start notification for job: ${jobId}`);
@@ -94,7 +94,7 @@ export const handler = async (event: SQSEvent) => {
               Name: key,
             },
           },
-        })
+        }),
       );
 
       // Extract text from response
@@ -113,7 +113,7 @@ export const handler = async (event: SQSEvent) => {
           Key: `${jobId}/extracted-text.txt`,
           Body: extractedText,
           ContentType: "text/plain",
-        })
+        }),
       );
 
       // Send to Bedrock queue
@@ -127,7 +127,7 @@ export const handler = async (event: SQSEvent) => {
         new SendMessageCommand({
           QueueUrl: getBedrockQueueUrl(),
           MessageBody: JSON.stringify(bedrockMessage),
-        })
+        }),
       );
 
       console.log(`Sent to Bedrock queue for job: ${jobId}`);
@@ -148,11 +148,11 @@ export const handler = async (event: SQSEvent) => {
           TopicArn: getTextractSNSTopicArn(),
           Subject: `Textract Processing Completed - Job ${jobId}`,
           Message: JSON.stringify(completionMessage),
-        })
+        }),
       );
 
       console.log(
-        `Published textract completion notification for job: ${jobId}`
+        `Published textract completion notification for job: ${jobId}`,
       );
     } catch (error) {
       console.error(`Error processing ${key}:`, error);
@@ -178,19 +178,19 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         //   Name: key,
         // },
       },
-    })
+    }),
   );
 
   await fs.writeFile(
     "out.json",
     JSON.stringify(
       textractResponse.Blocks?.filter((x) => x.BlockType === "LINE").map(
-        (x) => x.Text
+        (x) => x.Text,
       ),
       null,
-      4
+      4,
     ),
-    "utf-8"
+    "utf-8",
   );
   console.log(textractResponse.Blocks);
   console.log(textractResponse.Blocks?.length);

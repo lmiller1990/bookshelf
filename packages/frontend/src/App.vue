@@ -215,7 +215,7 @@ const testBooks: ValidatedBook[] = [
   },
 ];
 
-const books = ref<ValidatedBook[]>(testBooks)
+const books = ref<ValidatedBook[]>(testBooks);
 const imageSelected = ref(false);
 
 const handleFileUpload = async () => {
@@ -391,50 +391,45 @@ const handleFileSelect = (event: Event) => {
           </button>
 
           <!-- Processing Progress Indicator -->
-          <div v-if="isUploading" class="mt-4">
+          <div v-if="isUploading || true" class="mt-4">
             <div class="text-sm text-gray-600 mb-2">{{ status }}</div>
-            <div class="flex space-x-2">
-              <div
-                class="flex items-center space-x-1"
-                :class="
-                  processingStages.textract ? 'text-blue-600' : 'text-gray-400'
-                "
-              >
+            <div class="flex space-x-4">
+              <div class="flex items-center space-x-2">
                 <div
-                  class="w-2 h-2 rounded-full"
-                  :class="
-                    processingStages.textract ? 'bg-blue-600' : 'bg-gray-400'
-                  "
+                  class="status status-md"
+                  :class="[
+                    processingStages.textract
+                      ? status.includes('Extracting text')
+                        ? 'status-info animate-bounce'
+                        : 'status-success'
+                      : 'status-neutral',
+                  ]"
                 ></div>
                 <span class="text-xs">Text Extraction</span>
               </div>
-              <div
-                class="flex items-center space-x-1"
-                :class="
-                  processingStages.bedrock ? 'text-blue-600' : 'text-gray-400'
-                "
-              >
+              <div class="flex items-center space-x-2">
                 <div
-                  class="w-2 h-2 rounded-full"
-                  :class="
-                    processingStages.bedrock ? 'bg-blue-600' : 'bg-gray-400'
-                  "
+                  class="status status-md"
+                  :class="[
+                    processingStages.bedrock
+                      ? status.includes('Analyzing text')
+                        ? 'status-info animate-bounce'
+                        : 'status-success'
+                      : 'status-neutral',
+                  ]"
                 ></div>
                 <span class="text-xs">AI Analysis</span>
               </div>
-              <div
-                class="flex items-center space-x-1"
-                :class="
-                  processingStages.validation
-                    ? 'text-blue-600'
-                    : 'text-gray-400'
-                "
-              >
+              <div class="flex items-center space-x-2">
                 <div
-                  class="w-2 h-2 rounded-full"
-                  :class="
-                    processingStages.validation ? 'bg-blue-600' : 'bg-gray-400'
-                  "
+                  class="status status-md"
+                  :class="[
+                    processingStages.validation
+                      ? status.includes('Validating book')
+                        ? 'status-info animate-bounce'
+                        : 'status-success'
+                      : 'status-neutral',
+                  ]"
                 ></div>
                 <span class="text-xs">Book Validation</span>
               </div>
