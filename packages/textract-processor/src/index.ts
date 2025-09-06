@@ -1,13 +1,17 @@
 import { DetectDocumentTextCommand } from "@aws-sdk/client-textract";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
+import { PublishCommand } from "@aws-sdk/client-sns";
 import {
   textractClient,
   s3Client,
   sqsClient,
+  snsClient,
   getResultsBucket,
   getBedrockQueueUrl,
+  getTextractSNSTopicArn,
   type TextractMessage,
+  type ProcessingStageMessage,
 } from "@packages/shared";
 import { z } from "zod";
 import fs from "node:fs/promises";
@@ -63,6 +67,24 @@ export const handler = async (event: SQSEvent) => {
     console.log(`Processing image: ${key} from bucket: ${bucket}`);
 
     try {
+      // Send start notification
+      const startMessage: ProcessingStageMessage = {
+        jobId,
+        stage: "textract",
+        status: "started",
+        timestamp: new Date().toISOString(),
+      };
+
+      await snsClient.send(
+        new PublishCommand({
+          TopicArn: getTextractSNSTopicArn(),
+          Subject: `Textract Processing Started - Job ${jobId}`,
+          Message: JSON.stringify(startMessage),
+        }),
+      );
+
+      console.log(`Published textract start notification for job: ${jobId}`);
+
       // Call Textract
       const textractResponse = await textractClient.send(
         new DetectDocumentTextCommand({
@@ -109,6 +131,29 @@ export const handler = async (event: SQSEvent) => {
       );
 
       console.log(`Sent to Bedrock queue for job: ${jobId}`);
+
+      // Send completion notification
+      const completionMessage: ProcessingStageMessage = {
+        jobId,
+        stage: "textract",
+        status: "completed",
+        timestamp: new Date().toISOString(),
+        details: {
+          extractedTextLength: extractedText.length,
+        },
+      };
+
+      await snsClient.send(
+        new PublishCommand({
+          TopicArn: getTextractSNSTopicArn(),
+          Subject: `Textract Processing Completed - Job ${jobId}`,
+          Message: JSON.stringify(completionMessage),
+        }),
+      );
+
+      console.log(
+        `Published textract completion notification for job: ${jobId}`,
+      );
     } catch (error) {
       console.error(`Error processing ${key}:`, error);
       throw error;

@@ -253,6 +253,28 @@ resource "aws_sns_topic" "results_notifications" {
   }
 }
 
+# SNS Topic for textract processing notifications
+resource "aws_sns_topic" "textract_notifications" {
+  name = "${local.resource_prefix}-textract"
+  
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "Textract processing notifications"
+  }
+}
+
+# SNS Topic for bedrock processing notifications
+resource "aws_sns_topic" "bedrock_notifications" {
+  name = "${local.resource_prefix}-bedrock"
+  
+  tags = {
+    Environment = var.environment
+    Project     = "BookImg"
+    Purpose     = "Bedrock processing notifications"
+  }
+}
+
 # DynamoDB table for WebSocket connections
 resource "aws_dynamodb_table" "websocket_connections" {
   name           = "${local.resource_prefix}-websocket-connections"
@@ -375,7 +397,11 @@ resource "aws_iam_policy" "lambda_service_policy" {
         Action = [
           "sns:Publish"
         ]
-        Resource = aws_sns_topic.results_notifications.arn
+        Resource = [
+          aws_sns_topic.results_notifications.arn,
+          aws_sns_topic.textract_notifications.arn,
+          aws_sns_topic.bedrock_notifications.arn
+        ]
       },
       {
         Effect = "Allow"
@@ -468,8 +494,9 @@ module "textract_processor" {
   timeout           = 300  # 5 minutes for Textract
   
   environment_variables = {
-    RESULTS_BUCKET_NAME = aws_s3_bucket.bookimg_results.bucket
-    BEDROCK_QUEUE_URL   = aws_sqs_queue.bedrock_queue.url
+    RESULTS_BUCKET_NAME         = aws_s3_bucket.bookimg_results.bucket
+    BEDROCK_QUEUE_URL          = aws_sqs_queue.bedrock_queue.url
+    TEXTRACT_SNS_TOPIC_ARN     = aws_sns_topic.textract_notifications.arn
   }
   
   tags = {
@@ -490,8 +517,9 @@ module "bedrock_processor" {
   timeout           = 180  # 3 minutes for LLM
   
   environment_variables = {
-    RESULTS_BUCKET_NAME  = aws_s3_bucket.bookimg_results.bucket
-    VALIDATION_QUEUE_URL = aws_sqs_queue.validation_queue.url
+    RESULTS_BUCKET_NAME         = aws_s3_bucket.bookimg_results.bucket
+    VALIDATION_QUEUE_URL        = aws_sqs_queue.validation_queue.url
+    BEDROCK_SNS_TOPIC_ARN       = aws_sns_topic.bedrock_notifications.arn
   }
   
   tags = {
@@ -628,12 +656,40 @@ resource "aws_sns_topic_subscription" "sns_notification_handler" {
   endpoint  = module.sns_notification_handler.function_arn
 }
 
+resource "aws_sns_topic_subscription" "textract_notification_handler" {
+  topic_arn = aws_sns_topic.textract_notifications.arn
+  protocol  = "lambda"
+  endpoint  = module.sns_notification_handler.function_arn
+}
+
+resource "aws_sns_topic_subscription" "bedrock_notification_handler" {
+  topic_arn = aws_sns_topic.bedrock_notifications.arn
+  protocol  = "lambda"
+  endpoint  = module.sns_notification_handler.function_arn
+}
+
 resource "aws_lambda_permission" "sns_invoke_notification_handler" {
   statement_id  = "AllowExecutionFromSNS"
   action        = "lambda:InvokeFunction"
   function_name = module.sns_notification_handler.function_name
   principal     = "sns.amazonaws.com"
   source_arn    = aws_sns_topic.results_notifications.arn
+}
+
+resource "aws_lambda_permission" "textract_sns_invoke_notification_handler" {
+  statement_id  = "AllowExecutionFromTextractSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = module.sns_notification_handler.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = aws_sns_topic.textract_notifications.arn
+}
+
+resource "aws_lambda_permission" "bedrock_sns_invoke_notification_handler" {
+  statement_id  = "AllowExecutionFromBedrockSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = module.sns_notification_handler.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = aws_sns_topic.bedrock_notifications.arn
 }
 
 # CloudWatch Log Group for API Gateway
@@ -964,6 +1020,14 @@ output "validation_queue_url" {
 
 output "sns_topic_arn" {
   value = aws_sns_topic.results_notifications.arn
+}
+
+output "textract_sns_topic_arn" {
+  value = aws_sns_topic.textract_notifications.arn
+}
+
+output "bedrock_sns_topic_arn" {
+  value = aws_sns_topic.bedrock_notifications.arn
 }
 
 output "lambda_functions" {

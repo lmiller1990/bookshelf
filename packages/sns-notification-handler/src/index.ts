@@ -7,6 +7,7 @@ import {
   getWebSocketEndpoint,
   type SNSEvent,
   type ProcessingCompleteMessage,
+  type ProcessingStageMessage,
 } from "@packages/shared";
 
 export const handler = async (event: SNSEvent) => {
@@ -17,12 +18,10 @@ export const handler = async (event: SNSEvent) => {
 
   for (const record of event.Records) {
     try {
-      // Parse SNS message
-      const snsMessage: ProcessingCompleteMessage = JSON.parse(
-        record.Sns.Message,
-      );
-      const { jobId, status, books, validatedBooks, totalCandidates } =
-        snsMessage;
+      // Parse SNS message - could be ProcessingCompleteMessage or ProcessingStageMessage
+      const snsMessage: ProcessingCompleteMessage | ProcessingStageMessage =
+        JSON.parse(record.Sns.Message);
+      const { jobId } = snsMessage;
 
       console.log(`Processing notification for job: ${jobId}`);
 
@@ -57,18 +56,35 @@ export const handler = async (event: SNSEvent) => {
       const apiGatewayManagement =
         createApiGatewayManagementClient(websocketEndpoint);
 
-      // Prepare notification message for frontend
-      const notificationMessage = {
-        type: "processingComplete",
-        jobId: jobId,
-        status: status,
-        timestamp: new Date().toISOString(),
-        results: {
-          totalCandidates: totalCandidates || 0,
-          validatedBooks: validatedBooks || 0,
-          books: books || [],
-        },
-      };
+      // Prepare notification message for frontend based on message type
+      let notificationMessage: any;
+
+      if ("stage" in snsMessage) {
+        // ProcessingStageMessage
+        notificationMessage = {
+          type: "processingStage",
+          jobId: jobId,
+          stage: snsMessage.stage,
+          status: snsMessage.status,
+          timestamp: snsMessage.timestamp,
+          details: snsMessage.details || {},
+        };
+      } else {
+        // ProcessingCompleteMessage
+        const { status, books, validatedBooks, totalCandidates } =
+          snsMessage as ProcessingCompleteMessage;
+        notificationMessage = {
+          type: "processingComplete",
+          jobId: jobId,
+          status: status,
+          timestamp: new Date().toISOString(),
+          results: {
+            totalCandidates: totalCandidates || 0,
+            validatedBooks: validatedBooks || 0,
+            books: books || [],
+          },
+        };
+      }
 
       // Send notification via WebSocket
       try {
@@ -83,17 +99,19 @@ export const handler = async (event: SNSEvent) => {
           `✅ Sent notification to connection ${connectionId} for job ${jobId}`,
         );
 
-        // Clean up the connection record (job is complete)
-        await dynamodbClient.send(
-          new DeleteItemCommand({
-            TableName: tableName,
-            Key: {
-              jobId: { S: jobId },
-            },
-          }),
-        );
+        // Only clean up connection record if this is the final completion message
+        if (notificationMessage.type === "processingComplete") {
+          await dynamodbClient.send(
+            new DeleteItemCommand({
+              TableName: tableName,
+              Key: {
+                jobId: { S: jobId },
+              },
+            }),
+          );
 
-        console.log(`🧹 Cleaned up connection record for job ${jobId}`);
+          console.log(`🧹 Cleaned up connection record for job ${jobId}`);
+        }
       } catch (wsError: any) {
         console.error(
           `❌ Failed to send WebSocket message to ${connectionId}:`,

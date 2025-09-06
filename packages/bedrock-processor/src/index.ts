@@ -2,14 +2,18 @@ import type { SQSEvent } from "aws-lambda";
 import { InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { SendMessageCommand } from "@aws-sdk/client-sqs";
+import { PublishCommand } from "@aws-sdk/client-sns";
 import fs from "node:fs/promises";
 import {
   bedrockClient,
   s3Client,
   sqsClient,
+  snsClient,
   getResultsBucket,
   getValidationQueueUrl,
+  getBedrockSNSTopicArn,
   type BedrockMessage,
+  type ProcessingStageMessage,
 } from "@packages/shared";
 
 const BEDROCK_PROMPT = `You are an expert at analyzing OCR text from book spines and extracting clean title/author information.
@@ -114,6 +118,24 @@ export const handler = async (event: SQSEvent) => {
     console.log(`Text preview: ${extractedText.substring(0, 200)}...`);
 
     try {
+      // Send start notification
+      const startMessage: ProcessingStageMessage = {
+        jobId,
+        stage: "bedrock",
+        status: "started",
+        timestamp: new Date().toISOString(),
+      };
+
+      await snsClient.send(
+        new PublishCommand({
+          TopicArn: getBedrockSNSTopicArn(),
+          Subject: `Bedrock Processing Started - Job ${jobId}`,
+          Message: JSON.stringify(startMessage),
+        }),
+      );
+
+      console.log(`Published bedrock start notification for job: ${jobId}`);
+
       // Prepare Bedrock request
       const prompt = BEDROCK_PROMPT.replace("{TEXT}", extractedText);
 
@@ -188,6 +210,29 @@ export const handler = async (event: SQSEvent) => {
       );
 
       console.log(`Sent to validation queue for job: ${jobId}`);
+
+      // Send completion notification
+      const completionMessage: ProcessingStageMessage = {
+        jobId,
+        stage: "bedrock",
+        status: "completed",
+        timestamp: new Date().toISOString(),
+        details: {
+          candidatesCount: candidates.length,
+        },
+      };
+
+      await snsClient.send(
+        new PublishCommand({
+          TopicArn: getBedrockSNSTopicArn(),
+          Subject: `Bedrock Processing Completed - Job ${jobId}`,
+          Message: JSON.stringify(completionMessage),
+        }),
+      );
+
+      console.log(
+        `Published bedrock completion notification for job: ${jobId}`,
+      );
     } catch (error) {
       console.error(`Error processing Bedrock for job ${jobId}:`, error);
       throw error;

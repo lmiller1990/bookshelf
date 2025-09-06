@@ -1,4 +1,5 @@
 import type { SQSEvent } from "aws-lambda";
+import fs from "node:fs/promises";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { PublishCommand } from "@aws-sdk/client-sns";
 import {
@@ -11,6 +12,7 @@ import {
   type ValidationResult,
   type ValidatedBook,
   type FinalResults,
+  type ProcessingStageMessage,
 } from "@packages/shared";
 
 // Google Books API validation with API key
@@ -20,14 +22,17 @@ async function validateWithGoogleBooks(
 ): Promise<ValidationResult> {
   try {
     const query = encodeURIComponent(`${title}+${author}`);
+    console.log(query);
     const apiKey = process.env.GOOGLE_BOOKS_API_KEY;
     const url = apiKey
-      ? `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1&key=${apiKey}`
-      : `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`;
+      ? `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=5&key=${apiKey}`
+      : `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=5`;
 
     const response = await fetch(url);
     console.log(url);
     const data = (await response.json()) as any; // TODO type
+
+    await fs.writeFile("out.json", JSON.stringify(data, null, 4));
 
     if (data.items && data.items.length > 0) {
       const book = data.items[0].volumeInfo;
@@ -64,6 +69,27 @@ export const handler = async (event: SQSEvent) => {
     console.log(`Validating ${candidates.length} candidates for job: ${jobId}`);
 
     try {
+      // Send start notification
+      const startMessage: ProcessingStageMessage = {
+        jobId,
+        stage: "validation",
+        status: "started",
+        timestamp: new Date().toISOString(),
+        details: {
+          candidatesCount: candidates.length,
+        },
+      };
+
+      await snsClient.send(
+        new PublishCommand({
+          TopicArn: getSNSTopicArn(),
+          Subject: `Validation Processing Started - Job ${jobId}`,
+          Message: JSON.stringify(startMessage),
+        }),
+      );
+
+      console.log(`Published validation start notification for job: ${jobId}`);
+
       const validatedBooks: ValidatedBook[] = [];
 
       // Validate each candidate
@@ -149,82 +175,10 @@ export const handler = async (event: SQSEvent) => {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const candidates = [
     {
-      title: "TRANSFORMER",
-      author: "NICK LANE",
-      subtitle: null,
-      confidence: 0.9,
-    },
-    {
-      title: "Numbers Don't Lie",
-      author: "Vaclav Smil",
-      subtitle: null,
-      confidence: 0.8,
-    },
-    {
-      title: "THE POSSIBILITY OF LIFE",
-      author: "JAIME DUCKWORTH FALKOWSKI",
-      subtitle: null,
-      confidence: 0.9,
-    },
-    {
-      title: "LIFE'S ENGINES",
-      author: null,
-      subtitle: null,
-      confidence: 0.7,
-    },
-    {
-      title: "FOLLOW YOUR GUT",
-      author: "Barr Crocetti Wild Stinson Hutchings",
-      subtitle: null,
-      confidence: 0.8,
-    },
-    {
-      title:
-        "The truth, the lies and the unbelievable story of the original superfood",
-      author: "Matthew Evans",
-      subtitle: null,
-      confidence: 0.9,
-    },
-    {
-      title: "THE BITCOIN STANDARD",
-      author: "AMMOUS",
-      subtitle: null,
-      confidence: 0.9,
-    },
-    {
-      title: "50 mathematical ideas you really need to know",
-      author: "Tony Crilly",
-      subtitle: null,
-      confidence: 0.8,
-    },
-    {
-      title: "FROM BACTERIA TO BACH AND BACK",
-      author: "DANIEL C. DENNETT",
-      subtitle: null,
-      confidence: 0.9,
-    },
-    {
-      title: "THE GENETIC LOTTERY FOR SOCIAL EQUALITY",
-      author: "HARDEN",
-      subtitle: null,
-      confidence: 0.8,
-    },
-    {
-      title: "Rebel Cell",
-      author: "ARNEY",
-      subtitle: "Cancer, Evolution and the Science of Life",
-      confidence: 0.9,
-    },
-    {
-      title: "UNWELL",
-      author: "MIKE McRAE",
-      subtitle: null,
-      confidence: 0.8,
-    },
-    {
-      title: "HOW TO SPEND A TRILLION DOLLARS",
-      author: "ROWAN HOOPER",
-      subtitle: null,
+      title: "A Glorious Enterprise",
+      author: "PENN",
+      subtitle:
+        "The Academy of Natural Sciences of Philadelphia and the Making of American Science",
       confidence: 0.9,
     },
   ];
