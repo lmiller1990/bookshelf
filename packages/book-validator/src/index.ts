@@ -11,6 +11,7 @@ import {
   type ValidationResult,
   type ValidatedBook,
   type FinalResults,
+  type ProcessingStageMessage,
 } from "@packages/shared";
 
 // Google Books API validation with API key
@@ -64,6 +65,27 @@ export const handler = async (event: SQSEvent) => {
     console.log(`Validating ${candidates.length} candidates for job: ${jobId}`);
 
     try {
+      // Send start notification
+      const startMessage: ProcessingStageMessage = {
+        jobId,
+        stage: "validation",
+        status: "started",
+        timestamp: new Date().toISOString(),
+        details: {
+          candidatesCount: candidates.length,
+        },
+      };
+
+      await snsClient.send(
+        new PublishCommand({
+          TopicArn: getSNSTopicArn(),
+          Subject: `Validation Processing Started - Job ${jobId}`,
+          Message: JSON.stringify(startMessage),
+        }),
+      );
+
+      console.log(`Published validation start notification for job: ${jobId}`);
+
       const validatedBooks: ValidatedBook[] = [];
 
       // Validate each candidate

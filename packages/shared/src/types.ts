@@ -164,3 +164,16 @@ export interface ProcessingCompleteMessage {
   totalCandidates: number;
   resultsLocation: string;
 }
+
+// SNS Message payload for processing stage notifications
+export interface ProcessingStageMessage {
+  jobId: string;
+  stage: "textract" | "bedrock" | "validation";
+  status: "started" | "completed";
+  timestamp: string;
+  details?: {
+    extractedTextLength?: number;
+    candidatesCount?: number;
+    validatedCount?: number;
+  };
+}

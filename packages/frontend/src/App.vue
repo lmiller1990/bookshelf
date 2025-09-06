@@ -8,6 +8,11 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const status = ref<string>("");
 const statusType = ref<"info" | "success" | "error">("info");
 const isUploading = ref(false);
+const processingStages = ref<{ [key: string]: boolean }>({
+  textract: false,
+  bedrock: false,
+  validation: false,
+});
 
 // Configuration - loaded from environment variables
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -299,13 +304,45 @@ const connectWebSocket = (jobId: string): Promise<void> => {
 
         if (data.type === "subscribed") {
           console.log("🔗 Connected to real-time updates", "info");
+        } else if (data.type === "processingStage") {
+          console.log(`Processing stage: ${data.stage} - ${data.status}`, data);
+
+          if (data.status === "started") {
+            processingStages.value[data.stage] = true;
+
+            // Update status based on stage
+            switch (data.stage) {
+              case "textract":
+                status.value = "Extracting text from image...";
+                break;
+              case "bedrock":
+                status.value = "Analyzing text with AI...";
+                break;
+              case "validation":
+                status.value = "Validating book information...";
+                break;
+            }
+            statusType.value = "info";
+          } else if (data.status === "completed") {
+            // Keep stage marked as complete
+            console.log(`${data.stage} completed with details:`, data.details);
+          }
         } else if (data.type === "processingComplete") {
           console.log("processingComplete", data);
           handleBookedProcessed(data.results.books);
           const results = data.results;
+          status.value = "Processing complete!";
+          statusType.value = "success";
           console.log("Processing complete!", "success");
           websocket?.close();
           isUploading.value = false;
+
+          // Reset processing stages
+          processingStages.value = {
+            textract: false,
+            bedrock: false,
+            validation: false,
+          };
         }
       } catch (e) {
         console.error("Error parsing WebSocket message:", e);
@@ -351,8 +388,59 @@ const handleFileSelect = (event: Event) => {
             @click="handleFileUpload"
             :disabled="isUploading || !imageSelected"
           >
-            {{ isUploading ? "Uploading..." : "Upload Image" }}
+            {{ isUploading ? "Processing..." : "Upload Image" }}
           </button>
+
+          <!-- Processing Progress Indicator -->
+          <div v-if="isUploading" class="mt-4">
+            <div class="text-sm text-gray-600 mb-2">{{ status }}</div>
+            <div class="flex space-x-2">
+              <div
+                class="flex items-center space-x-1"
+                :class="
+                  processingStages.textract ? 'text-blue-600' : 'text-gray-400'
+                "
+              >
+                <div
+                  class="w-2 h-2 rounded-full"
+                  :class="
+                    processingStages.textract ? 'bg-blue-600' : 'bg-gray-400'
+                  "
+                ></div>
+                <span class="text-xs">Text Extraction</span>
+              </div>
+              <div
+                class="flex items-center space-x-1"
+                :class="
+                  processingStages.bedrock ? 'text-blue-600' : 'text-gray-400'
+                "
+              >
+                <div
+                  class="w-2 h-2 rounded-full"
+                  :class="
+                    processingStages.bedrock ? 'bg-blue-600' : 'bg-gray-400'
+                  "
+                ></div>
+                <span class="text-xs">AI Analysis</span>
+              </div>
+              <div
+                class="flex items-center space-x-1"
+                :class="
+                  processingStages.validation
+                    ? 'text-blue-600'
+                    : 'text-gray-400'
+                "
+              >
+                <div
+                  class="w-2 h-2 rounded-full"
+                  :class="
+                    processingStages.validation ? 'bg-blue-600' : 'bg-gray-400'
+                  "
+                ></div>
+                <span class="text-xs">Book Validation</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
